@@ -1,0 +1,18 @@
+# dependency folders
+node_modules/
+
+/client/node_modules/
+/server/node_modules/
+
+# Other ignored files (you can add other patterns as needed)
+*.log
+*.env
+
+ENDPOINT_AUDIT_REPORT.md
+FIX_MAKE_INVOICE_BUTTON.md
+MAKE_INVOICE_FIX_SUMMARY.md
+QUICK_START_GUIDE.md
+
+
+# database dumps
+arauf_crm.sql

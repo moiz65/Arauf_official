@@ -1,0 +1,855 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
+import Header from '../components/Header';
+import Logo from '../assets/Logo/Logo.png';
+
+
+const API_BASE_URL = 'https://arauf-live.onrender.com/api';
+
+const InvoiceDetails = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [invoice, setInvoice] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const invoiceRef = useRef();
+
+  // PDF Generation Function using browser's print functionality
+  const generatePDF = () => {
+    try {
+      // Create a new window with just the invoice content
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      
+      if (!printWindow) {
+        alert('Pop-up blocked. Please allow pop-ups for this site to generate PDF.');
+        return;
+      }
+
+      // Get the invoice content
+      const invoiceContent = invoiceRef.current;
+      if (!invoiceContent) return;
+
+      // Create the HTML content for the print window
+      const printHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Invoice ${invoice.invoice_number || id}</title>
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              background: white;
+              color: #333;
+              line-height: 1.4;
+              padding: 20px;
+            }
+            
+            .invoice-container {
+              max-width: 800px;
+              margin: 0 auto;
+              background: white;
+              padding: 0;
+            }
+            
+            .company-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 30px;
+              padding: 20px;
+              border-bottom: 1px solid #e5e5e5;
+            }
+            
+            .company-info {
+              display: flex;
+              align-items: center;
+              gap: 20px;
+            }
+            
+            .company-logo {
+              width: 80px;
+              height: 80px;
+            }
+            
+            .company-details h2 {
+              font-size: 16px;
+              font-weight: 600;
+              color: #333843;
+              margin-bottom: 8px;
+            }
+            
+            .company-details p {
+              font-size: 12px;
+              color: #667085;
+              margin-bottom: 2px;
+            }
+            
+            .invoice-meta {
+              text-align: right;
+            }
+            
+            .invoice-number {
+              background: #f4f5f6;
+              padding: 8px 12px;
+              border-radius: 6px;
+              font-size: 12px;
+              font-weight: 600;
+              margin-bottom: 8px;
+            }
+            
+            .total-amount {
+              font-size: 18px;
+              font-weight: bold;
+              color: #333843;
+            }
+            
+            .total-label {
+              font-size: 12px;
+              color: #667085;
+              margin-bottom: 4px;
+            }
+            
+            .billing-section {
+              display: grid;
+              grid-template-columns: 1fr 2fr;
+              gap: 30px;
+              margin-bottom: 30px;
+            }
+            
+            .bill-dates {
+              background: #1976d2;
+              color: white;
+              padding: 20px;
+              border-radius: 8px;
+            }
+            
+            .bill-dates p {
+              margin-bottom: 15px;
+            }
+            
+            .bill-dates .label {
+              font-size: 14px;
+              margin-bottom: 5px;
+            }
+            
+            .bill-dates .value {
+              font-size: 16px;
+              font-weight: 500;
+            }
+            
+            .billing-address h3 {
+              font-size: 15px;
+              font-weight: 600;
+              margin-bottom: 8px;
+            }
+            
+            .customer-name {
+              font-size: 16px;
+              font-weight: 600;
+              margin-bottom: 5px;
+            }
+            
+            .billing-address p {
+              font-size: 14px;
+              color: #666;
+              margin-bottom: 2px;
+            }
+            
+            .note-section {
+              margin-top: 20px;
+            }
+            
+            .note-section h4 {
+              font-size: 15px;
+              font-weight: 600;
+              margin-bottom: 8px;
+            }
+            
+            .invoice-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+            }
+            
+            .invoice-table th {
+              background: #f8f9fa;
+              padding: 12px 8px;
+              font-size: 12px;
+              font-weight: 600;
+              text-transform: uppercase;
+              color: #667085;
+              border-bottom: 1px solid #e5e5e5;
+            }
+            
+            .invoice-table td {
+              padding: 15px 8px;
+              font-size: 14px;
+              border-bottom: 1px solid #f0f0f0;
+            }
+            
+            .invoice-table th:first-child,
+            .invoice-table td:first-child {
+              text-align: left;
+            }
+            
+            .invoice-table th:not(:first-child),
+            .invoice-table td:not(:first-child) {
+              text-align: right;
+            }
+            
+            .summary-section {
+              display: flex;
+              justify-content: flex-end;
+              margin-bottom: 30px;
+            }
+            
+            .summary-table {
+              width: 300px;
+            }
+            
+            .summary-row {
+              display: flex;
+              justify-content: space-between;
+              padding: 8px 0;
+              border-bottom: 1px solid #f0f0f0;
+            }
+            
+            .summary-row:last-child {
+              border-bottom: 2px solid #333;
+              font-weight: bold;
+              font-size: 16px;
+              padding-top: 12px;
+            }
+            
+            .terms {
+              border-top: 1px solid #e5e5e5;
+              padding-top: 20px;
+            }
+            
+            .terms h4 {
+              font-size: 14px;
+              font-weight: 600;
+              margin-bottom: 8px;
+            }
+            
+            .terms p {
+              font-size: 14px;
+              color: #666;
+            }
+            
+            @media print {
+              body { margin: 0; padding: 10px; }
+              .invoice-container { margin: 0; padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-container">
+            <div class="company-header">
+              <div class="company-info">
+                <img src="${Logo}" alt="Company Logo" class="company-logo">
+                <div class="company-details">
+                  <h2>A Rauf Brother Textile</h2>
+                  <p>Room No.205 Floor Saleha Chamber, Plot No. 8-9/C-1 Site, Karachi</p>
+                  <p>contact@araufbrothe.com</p>
+                  <p><strong>S.T. Reg.No:</strong> 3253255666541</p>
+                  <p>Telephone No: 021-36404043</p>
+                  <p><strong>NTN No:</strong> 7755266214-8</p>
+                </div>
+              </div>
+              <div class="invoice-meta">
+                <div class="invoice-number">#${invoice.bill_date ? new Date(invoice.bill_date).toISOString().split('T')[0] : 'N/A'}</div>
+                <div class="total-label">Total Amount</div>
+                <div class="total-amount">${invoice.currency || 'PKR'} ${parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+              </div>
+            </div>
+            
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="font-size: 24px; font-weight: bold; color: #333843;">Invoice #${invoice.invoice_number || id}</h1>
+              <p style="color: #667085; margin-top: 8px;">Invoice Date: ${invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB', { 
+                day: 'numeric',
+                month: 'short', 
+                year: 'numeric'
+              }).toUpperCase() : 'N/A'}</p>
+            </div>
+            
+            <div class="billing-section">
+              <div class="bill-dates">
+                <div>
+                  <div class="label">Bill Date</div>
+                  <div class="value">${invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB') : 'N/A'}</div>
+                </div>
+                <div>
+                  <div class="label">Delivery Date</div>
+                  <div class="value">${invoice.delivery_date ? new Date(invoice.delivery_date).toLocaleDateString('en-GB') : 'N/A'}</div>
+                </div>
+                <div>
+                  <div class="label">Terms of Payment</div>
+                  <div class="value">${invoice.terms_of_payment || 'N/A'}</div>
+                </div>
+                <div>
+                  <div class="label">Payment Deadline</div>
+                  <div class="value">${invoice.payment_deadline ? new Date(invoice.payment_deadline).toLocaleDateString('en-GB') : 'N/A'}</div>
+                </div>
+              </div>
+              
+              <div class="billing-address">
+                <h3>Billing Address</h3>
+                <div class="customer-name">${invoice.customer_name || 'N/A'}</div>
+                <p>${invoice.address || 'N/A'}</p>
+                <p>${invoice.customer_email || 'N/A'}</p>
+                ${invoice.st_reg_no ? `<p><strong>S.T. Reg.No:</strong> ${invoice.st_reg_no}</p>` : ''}
+                ${invoice.p_number ? `<p><strong>Telephone No:</strong> ${invoice.p_number}</p>` : ''}
+                ${invoice.ntn_number ? `<p><strong>NTN No:</strong> ${invoice.ntn_number}</p>` : ''}
+                
+                <div class="note-section">
+                  <h4>Note</h4>
+                  <p>${invoice.note || 'No additional notes'}</p>
+                </div>
+              </div>
+            </div>
+            
+            <table class="invoice-table">
+              <thead>
+                <tr>
+                  <th>NO.</th>
+                  <th>DESCRIPTION OF GOODS</th>
+                  <th>QUANTITY</th>
+                  <th>NET WEIGHT IN KG</th>
+                  <th>RATE</th>
+                  <th>AMOUNT OF SALES TAX</th>
+                  <th>FINAL AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td>${invoice.item_name || 'N/A'}</td>
+                  <td>${parseFloat(invoice.quantity || 0).toLocaleString()}</td>
+                  <td>-</td>
+                  <td>${parseFloat(invoice.rate || 0).toLocaleString()}</td>
+                  <td>${parseFloat(invoice.tax_amount || 0).toLocaleString()}</td>
+                  <td><strong>${parseFloat(invoice.item_amount || 0).toLocaleString()}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+            
+            <div class="summary-section">
+              <div class="summary-table">
+                <div class="summary-row">
+                  <span>Subtotal:</span>
+                  <span>${parseFloat(invoice.subtotal || 0).toLocaleString()}</span>
+                </div>
+                <div class="summary-row">
+                  <span>Tax Rate:</span>
+                  <span>${invoice.tax_rate || 0}%</span>
+                </div>
+                <div class="summary-row">
+                  <span>Sales Tax:</span>
+                  <span>${parseFloat(invoice.salesTax || 0).toLocaleString()}</span>
+                </div>
+                <div class="summary-row">
+                  <span>Total Price:</span>
+                  <span>${parseFloat(invoice.total_amount || 0).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="terms">
+              <h4>Terms & Conditions</h4>
+              <p>${invoice.terms_of_payment ? `Please pay ${invoice.terms_of_payment.toLowerCase()}.` : 'Please pay within 15 days of receiving this invoice.'}</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Write the content to the new window
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+
+      // Wait for content to load, then trigger print
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+          // Close the window after printing (optional)
+          setTimeout(() => {
+            printWindow.close();
+          }, 1000);
+        }, 500);
+      };
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    const fetchInvoice = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_BASE_URL}/invoices/${id}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch invoice');
+        }
+        
+        const data = await response.json();
+        setInvoice(data);
+      } catch (err) {
+        console.error('Error fetching invoice:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchInvoice();
+    }
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+          <p className="text-gray-500">Loading invoice...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">Error loading invoice</div>
+          <p className="text-gray-500 mb-4">{error}</p>
+          <button
+            onClick={() => navigate('/invoices')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+          >
+            Back to Invoices
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!invoice) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="text-gray-500 mb-4">Invoice not found</div>
+          <button
+            onClick={() => navigate('/invoices')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+          >
+            Back to Invoices
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+  <div className="flex h-screen bg-background" style={{ backgroundColor: "#F4F5F6" }}>
+    {/* Sidebar */}
+    <div className="hidden md:block fixed h-full w-64 z-20">
+      <Sidebar />
+    </div>
+
+    {/* Main Content */}
+    <div className="flex-1 flex flex-col md:ml-64 relative">
+      {/* Header */}
+      <Header name="A RAUF TEXTILE" />
+
+      {/* Main Container */}
+      <div className="flex-1 p-6">
+{/* Invoice Header */}
+<div className="flex flex-row items-center justify-between w-[1172px] h-[63px] mb-6">
+  {/* Left Side: Invoice Info */}
+  <div className="flex flex-col items-start gap-3 w-[955px]">
+    <h1 className="text-[24px] font-bold text-[#333843]">Invoice #{invoice.invoice_number || id}</h1>
+    <p className="text-[16px] text-[#667085]">Invoice Date : {invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB', { 
+      day: 'numeric',
+      month: 'short', 
+      year: 'numeric'
+    }).toUpperCase() : 'N/A'}</p>
+  </div>
+
+  {/* Right Side: Print Button */}
+  <button 
+    onClick={generatePDF}
+    className="flex flex-row justify-center items-center px-5 py-2 gap-[10px] w-[193px] h-[47px] bg-[#1976D2] rounded-xl hover:bg-[#1565C0] transition-colors"
+  >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mr-2">
+      <path d="M6 2H18C19.1046 2 20 2.89543 20 4V6H4V4C4 2.89543 4.89543 2 6 2Z" fill="white"/>
+      <path d="M4 8H20V16C20 17.1046 19.1046 18 18 18H16V20C16 21.1046 15.1046 22 14 22H10C8.89543 22 8 21.1046 8 20V18H6C4.89543 18 4 17.1046 4 16V8Z" fill="white"/>
+      <path d="M8 18V20H16V18H8Z" fill="#1976D2"/>
+    </svg>
+    <span className="font-poppins font-semibold text-[18px] leading-[27px] text-white">
+      Print PDF
+    </span>
+  </button>
+</div>
+
+
+
+        <div className="flex gap-6">
+          
+          {/* Left Content - Invoice */}
+          <div ref={invoiceRef} className="flex-1 bg-white rounded-lg shadow-sm overflow-hidden">
+            {/* Invoice Header */}
+            <div className="flex flex-row justify-center items-center gap-6 p-0" 
+              style={{ width: '1172px', height: '63px', flex: 'none', order: 0, alignSelf: 'stretch', flexGrow: 0 }}>              
+            </div>
+
+            <div className="relative flex justify-center items-center gap-6 px-8 py-8" style={{ width: '737px', height: '130px' }}>
+              {/* Company Info - Left Section */}
+              <div className="flex items-center gap-5" style={{ width: '538px', height: '130px', flex: '1 1 0%' }}>
+                {/* Logo */}
+                <div style={{ width: '130px', height: '130px', flexShrink: 0 }}>
+                  <img src={Logo} alt="Company Logo" className="w-full h-full object-contain" />
+                </div>
+
+                {/* Text Content */}
+                <div className="flex flex-col gap-1.5" style={{ width: '388px', height: '130px', flex: '1 1 0%' }}>
+                  {/* Company Name */}
+                  <h2 className="text-[14px] font-semibold leading-[140%] tracking-[0.005em] text-[#333843] w-full">
+                    A Rauf Brother Textile
+                  </h2>
+
+                  {/* Company Details */}
+                  <div className="flex flex-col gap-1.5 w-full">
+                    <p className="text-[12px] leading-[132%] tracking-[0.005em] text-[#667085]">
+                      Room No.205 Floor Saleha Chamber, Plot No. 8-9/C-1 Site, Karachi
+                    </p>
+                    <p className="text-[12px] leading-[132%] tracking-[0.005em] text-[#667085]">
+                      contact@araufbrothe.com
+                    </p>
+                    <p className="text-[12px] leading-[132%] tracking-[0.005em] text-[#667085] font-semibold">
+                      S.T. Reg.No: 3253255666541
+                    </p>
+                    <p className="text-[12px] leading-[132%] tracking-[0.005em] text-[#667085]">
+                      Telephone No: 021-36404043
+                    </p>
+                    <p className="text-[12px] leading-[132%] tracking-[0.005em] text-[#667085] font-semibold">
+                      NTN No: 7755266214-8
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoice Number and Total Amount - Right Section */}
+              <div className="flex flex-col justify-between items-end gap-2" style={{ width: '175px', height: '130px', flexShrink: 0 }}>
+                {/* Invoice Number */}
+                <div className="flex justify-center items-center px-3 py-2 bg-[#F4F5F6] rounded-lg">
+                  <span className="text-[12px] font-semibold leading-[132%] tracking-[0.005em] text-[#333843]">
+                    #{invoice.bill_date ? new Date(invoice.bill_date).toISOString().split('T')[0] : 'N/A'}
+                  </span>
+                </div>
+
+                {/* Total Amount */}
+                <div className="flex flex-col items-end gap-2" style={{ width: '175px' }}>
+                  <span className="text-[12px] font-medium leading-[132%] tracking-[0.005em] text-[#667085] w-full text-right">
+                    Total Amount
+                  </span>
+                  <span className="text-[20px] font-bold leading-[24px] tracking-[0.005em] text-[#333843] w-full text-right">
+                    {invoice.currency || 'PKR'} {parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Box */}
+              <div className="absolute flex flex-col items-center p-6 gap-4 isolate bg-white border border-[#F0F1F3] shadow-[0px_4px_30px_rgba(26,28,33,0.05)] rounded-xl"
+                style={{ width: '344px', height: '130px', left: '867px', top: '-46px' }}>
+                {/* Status Text */}
+                <h3 className="w-[296px] h-[22px] font-inter font-semibold text-[16px] leading-[140%] tracking-[0.005em] text-[#333843] text-center flex-none order-0 self-stretch flex-grow-0 z-[1]">
+                  {invoice.is_sent ? 'Invoice sent!' : 'Invoice not yet sent!'}
+                </h3>
+
+                {/* Send Invoice Button */}
+                <button className="flex flex-row justify-center items-center py-3 px-4 gap-2 w-[296px] h-[44px] bg-[#1976D2] rounded-lg flex-none order-1 self-stretch flex-grow-0 z-0">
+                  {/* Send Icon */}
+                  <svg className="w-5 h-5 flex-none order-0 flex-grow-0" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"
+                    style={{ position: 'relative', left: '', right: '', top: '-2.73%', bottom: '12.43%' }}>
+                    <path d="M18.3334 9.99935L1.66675 9.99935M18.3334 9.99935L11.6667 16.666M18.3334 9.99935L11.6667 3.33268"
+                      stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  {/* Button Text */}
+                  <span className="w-[88px] h-5 font-inter font-semibold text-[14px] leading-[140%] tracking-[0.005em] text-white flex-none order-1 flex-grow-0">
+                    Send Invoice
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Billing Information Section */}
+            <div className="p-6 border rounded-lg border-gray-200">
+              <div className="grid grid-cols-5 gap-6">
+                <div className="col-span-1 bg-[#1976D2] rounded-lg text-white p-4">
+                  <p className="text-[14px] mb-1">Bill Date</p>
+                  <p className="text-[16px] font-medium">
+                    {invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB') : 'N/A'}
+                  </p>
+                  
+                  <p className="text-[14px] mb-1 mt-4">Delivery Date</p>
+                  <p className="text-[16px] font-medium">
+                    {invoice.delivery_date ? new Date(invoice.delivery_date).toLocaleDateString('en-GB') : 'N/A'}
+                  </p>
+                  
+                  <p className="text-[14px] mb-1 mt-4">Terms of Payment</p>
+                  <p className="text-[16px] font-medium">{invoice.terms_of_payment || 'N/A'}</p>
+                  
+                  <p className="text-[14px] mb-1 mt-4">Payment Deadline</p>
+                  <p className="text-[16px] font-medium">
+                    {invoice.payment_deadline ? new Date(invoice.payment_deadline).toLocaleDateString('en-GB') : 'N/A'}
+                  </p>
+                </div>
+
+                <div className="col-span-3">
+                  <p className="text-[15px] font-medium text-[#333] mb-2">Billing Address</p>
+                  <h3 className="text-[16px] font-semibold text-[#333] mb-1">{invoice.customer_name || 'N/A'}</h3>
+                  <p className="text-[14px] text-[#666]">{invoice.address || 'N/A'}</p>
+                  <p className="text-[14px] text-[#666]">{invoice.customer_email || 'N/A'}</p>
+                  {invoice.st_reg_no && <p className="text-[14px] text-[#666]">S.T. Reg.No: {invoice.st_reg_no}</p>}
+                  {invoice.p_number && <p className="text-[14px] text-[#666]">Telephone No: {invoice.p_number}</p>}
+                  {invoice.ntn_number && <p className="text-[14px] text-[#666]">NTN No: {invoice.ntn_number}</p>}
+                  
+                  <div className="mt-4">
+                    <p className="text-[15px] font-medium text-[#333] mb-2">Note</p>
+                    <p className="text-[14px] text-[#666] leading-relaxed">
+                      {invoice.note || 'No additional notes'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Invoice Table */}
+            <div className="px-6 py-4">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500">NO.</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500">DESCRIPTION OF GOODS</th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-gray-500">QUANTITY</th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-gray-500">NET WEIGHT IN KG</th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-gray-500">RATE</th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-gray-500">AMOUNT OF SALES TAX</th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-gray-500">FINAL AMOUNT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-100">
+                    <td className="py-4 px-4 text-sm text-gray-600">1</td>
+                    <td className="py-4 px-4 text-sm text-gray-600">{invoice.item_name || 'N/A'}</td>
+                    <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(invoice.quantity || 0).toLocaleString()}</td>
+                    <td className="py-4 px-4 text-sm text-gray-600 text-right">-</td>
+                    <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(invoice.rate || 0).toLocaleString()}</td>
+                    <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(invoice.tax_amount || 0).toLocaleString()}</td>
+                    <td className="py-4 px-4 text-sm text-gray-900 text-right">{parseFloat(invoice.item_amount || 0).toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Summary */}
+            <div className="flex justify-end p-6 border-t border-gray-200">
+              <div className="w-64 text-right space-y-2">
+                <div>
+                  <div className="text-sm text-gray-600">Subtotal</div>
+                  <div className="text-base font-medium">{parseFloat(invoice.subtotal || 0).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">Tax Rate</div>
+                  <div className="text-base">{invoice.tax_rate || 0}%</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">Sales Tax</div>
+                  <div className="text-base">{parseFloat(invoice.salesTax || 0).toLocaleString()}</div>
+                </div>
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="text-sm font-medium text-gray-600">Total Price</div>
+                  <div className="text-lg font-bold">{parseFloat(invoice.total_amount || 0).toLocaleString()}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Terms and Conditions */}
+            <div className="p-6 border-t border-gray-200">
+              <h4 className="text-sm font-medium text-gray-600 mb-1">Terms & Conditions</h4>
+              <p className="text-sm text-gray-600">{invoice.terms_of_payment ? `Please pay ${invoice.terms_of_payment.toLowerCase()}.` : 'Please pay within 15 days of receiving this invoice.'}</p>
+            </div>
+          </div>
+            
+            {/* Payment Summary Panel */}
+            <div className="w-[344px] flex flex-col items-center gap-4 mt-4">
+              {/* Status Header */}
+              <div className={`w-[344px] h-[44px] flex items-center justify-center px-4 py-3 gap-2 rounded-lg ${
+                invoice.status === 'Paid' 
+                  ? 'bg-[#CFF3AF] border border-[#72D021]'
+                  : invoice.status === 'Pending'
+                  ? 'bg-[#FFF4E6] border border-[#FF9800]'
+                  : 'bg-[#FEF0F0] border border-[#F44336]'
+              }`}>
+                <div className="flex items-center justify-center gap-2 flex-1">
+                  {invoice.status === 'Paid' ? (
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="8" cy="8" r="8" fill="#4CAF50"/>
+                      <path d="M5 8l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="8" cy="8" r="8" fill="#FF9800"/>
+                      <path d="M8 4v4l3 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                  <span className={`text-[14px] font-semibold ${
+                    invoice.status === 'Paid' 
+                      ? 'text-[#27AE60]'
+                      : invoice.status === 'Pending'
+                      ? 'text-[#FF9800]'
+                      : 'text-[#F44336]'
+                  }`}>
+                    {invoice.status || 'Unknown'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Summary Box */}
+              <div className="w-[344px] bg-white border border-[#F0F1F3] rounded-xl shadow-[0px_4px_30px_rgba(26,28,33,0.05)]">
+              
+              <div className="p-4 border-b border-[#E0E2E7]">
+                <h3 className="text-[16px] font-semibold leading-[140%] tracking-[0.005em] text-[#333843]">Summary</h3>
+              </div>
+
+              <div className="flex justify-between items-center p-4 bg-[#FAFAFA]">
+                <span className="text-[14px] font-semibold leading-[140%] tracking-[0.005em] text-[#333843]">Total</span>
+                <span className="text-[14px] font-semibold leading-[140%] tracking-[0.005em] text-[#333843]">
+                  {parseFloat(invoice.total_amount || 0).toLocaleString()} Incl. VAT
+                </span>
+              </div>
+
+              {/* Payment History - Commented out for now */}
+              {/*
+              <div className="p-6">
+                <div className="space-y-6">
+                  {/* Deposit Payment */}
+                  {/*
+                  <div className="flex gap-3">
+                    <div className="relative">
+                      <div className="w-3 h-3 rounded-full bg-[#1EB386]" />
+                      <div className="absolute top-3 left-1.5 w-[1px] h-[84px] border-r border-dashed border-[#E0E2E7]" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-[14px] font-semibold leading-[140%] tracking-[0.005em] text-[#333843] mb-2">
+                        Deposit No. 2020-04-0006
+                      </h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[14px] text-[#667085]">Date</span>
+                          <span className="text-[14px] font-medium text-[#333843]">Oct 24, 2019</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[14px] text-[#667085]">Amount</span>
+                          <span className="text-[14px] font-medium text-[#333843]">300</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Partial Payments */}
+                  {/*
+                  {[{ date: 'Oct 26, 2019', amount: '400' }, { date: 'Oct 27, 2019', amount: '2,230' }].map(
+                    (payment, index) => (
+                      <div key={index} className="flex gap-3">
+                        <div className="relative">
+                          <div className="w-3 h-3 rounded-full bg-[#1EB386]" />
+                          {index === 0 && (
+                            <div className="absolute top-3 left-1.5 w-[1px] h-[84px] border-r border-dashed border-[#E0E2E7]" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-[14px] font-semibold leading-[140%] tracking-[0.005em] text-[#333843] mb-2">
+                            Partial Payment
+                          </h4>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[14px] text-[#667085]">Date</span>
+                              <span className="text-[14px] font-medium text-[#333843]">{payment.date}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[14px] text-[#667085]">Amount</span>
+                              <span className="text-[14px] font-medium text-[#333843]">{payment.amount}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+
+                <hr className="my-6 border-t border-[#F0F1F3]" />
+
+                {/* Remaining Amount */}
+                {/*
+                <div className="flex justify-between items-center">
+                  <span className="text-[14px] font-semibold text-[#333843]">Remaining Amount</span>
+                  <div className="px-3 py-1 bg-[#FEF0F0] rounded-lg">
+                    <span className="text-[14px] font-semibold text-[#333843]">
+                      {parseFloat(invoice.total_amount || 0).toLocaleString()} Incl. VAT
+                    </span>
+                  </div>
+                </div>
+              </div>
+              */}
+
+              {/* Simple Status Display */}
+              <div className="p-6">
+                <div className="flex flex-col items-center gap-4">
+                  {/* Invoice Status */}
+                  <div className="text-center">
+                    <h4 className="text-[16px] font-semibold text-[#333843] mb-2">Invoice Status</h4>
+                    <div className={`inline-flex items-center px-4 py-2 rounded-lg font-medium ${
+                      invoice.status === 'Paid' 
+                        ? 'bg-green-100 text-green-800'
+                        : invoice.status === 'Pending'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {invoice.status || 'Pending'}
+                    </div>
+                  </div>
+
+                  {/* Total Amount Due */}
+                  <div className="text-center border-t border-gray-200 pt-4 w-full">
+                    <p className="text-[14px] text-[#667085] mb-1">Total Amount Due</p>
+                    <p className="text-[18px] font-bold text-[#333843]">
+                      {invoice.currency || 'PKR'} {parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+};
+
+export default InvoiceDetails;
