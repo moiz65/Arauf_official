@@ -29,10 +29,10 @@ app.get("/test", (req, res) => {
 
 // --- MySQL Database Connection ---
 const db = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "arauf_crm_main"
+  host: "srv1624.hstgr.io",
+  user: "u115615899_arauf_crm",
+  password: "Admindeveloper@1234",
+  database: "u115615899_arauf_crm"
 });
 
 // Connect to MySQL

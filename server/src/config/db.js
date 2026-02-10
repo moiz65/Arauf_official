@@ -1,10 +1,10 @@
 const mysql = require("mysql2/promise");
 
 const db = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "", // Add your MySQL password if set
-  database: "arauf_crm_main",
+  host: "srv1624.hstgr.io",
+  database: "u115615899_arauf_crm",
+  user: "u115615899_arauf_crm",
+  password: "Admindeveloper@1234", // Add your MySQL password if set
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
