@@ -27,21 +27,36 @@ app.get("/test", (req, res) => {
   res.json({ success: true, message: "Server is working!" });
 });
 
-// --- MySQL Database Connection ---
-const db = mysql.createConnection({
-  host: "srv1624.hstgr.io",
-  user: "u115615899_arauf_crm",
-  password: "Admindeveloper@1234",
-  database: "u115615899_arauf_crm",
+// --- MySQL Database Connection Pool ---
+// Using connection pool instead of single connection to handle multiple concurrent requests
+const db = mysql.createPool({
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "arauf_crm",
 });
 
-// Connect to MySQL
-db.connect((err) => {
+// Test database connection
+logger.info("MySQL Connection Pool initialized");
+
+// Initialize database tables and default user
+db.getConnection((err, connection) => {
   if (err) {
-    logger.error("Error connecting to MySQL:", err);
+    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+      logger.error('Database connection was closed.');
+    }
+    if (err.code === 'ER_CON_COUNT_ERROR') {
+      logger.error('Database has too many connections.');
+    }
+    if (err.code === 'ER_AUTHENTICATION_PLUGIN_ERROR') {
+      logger.error('Database authentication failed.');
+    }
     return;
   }
-  logger.info("Connected to MySQL database");
+  
+  if (connection) {
+    connection.release();
+    logger.info("Connected to MySQL database");
   
   // Create users table if it doesn't exist (simple structure)
   const createUsersTable = `
@@ -90,6 +105,7 @@ db.connect((err) => {
       });
     }
   });
+  }
 });
 
 // Create stock table if it doesn't exist
@@ -726,13 +742,7 @@ app.post("/api/expenses", (req, res) => {
       return res.status(500).json({ message: "Failed to create category", error: err.message });
     }
 
-    // Start transaction for expense and items
-    db.beginTransaction((err) => {
-      if (err) {
-        console.error("Error starting transaction:", err);
-        return res.status(500).json({ message: "Failed to start transaction", error: err.message });
-      }
-
+    // Create expense directly (transactions not supported with mysql2 pool)
     const query = `
       INSERT INTO expenses (title, date, vendor, amount, category, paymentMethod, status, description)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -742,46 +752,33 @@ app.post("/api/expenses", (req, res) => {
     db.query(query, values, (err, result) => {
       if (err) {
         console.error("Error creating expense:", err.message);
-        return db.rollback(() => {
-          res.status(500).json({ message: "Failed to create expense", error: err.message });
-        });
+        return res.status(500).json({ message: "Failed to create expense", error: err.message });
       }
       
       const expenseId = result.insertId;
-  logger.info('Expense created with ID:', expenseId);
+      logger.info('Expense created with ID:', expenseId);
 
       // Skip expense items for now since table doesn't exist
       // TODO: Create expense_items table if detailed item tracking is needed
       
-      // Just commit the expense
-      db.commit((err) => {
-        if (err) {
-          console.error("Error committing transaction:", err);
-          return db.rollback(() => {
-            res.status(500).json({ message: "Failed to commit transaction", error: err.message });
-          });
+      logger.info('Expense created successfully');
+      res.status(201).json({
+        message: "Expense created successfully",
+        expense: {
+          id: expenseId,
+          title,
+          date,
+          vendor,
+          amount: totalAmount,
+          category,
+          categoryType,
+          paymentMethod,
+          status,
+          description,
+          items_count: items ? items.length : 0
         }
-
-  logger.info('Expense created successfully');
-        res.status(201).json({
-          message: "Expense created successfully",
-          expense: {
-            id: expenseId,
-            title,
-            date,
-            vendor,
-            amount: totalAmount,
-            category,
-            categoryType,
-            paymentMethod,
-            status,
-            description,
-            items_count: items ? items.length : 0
-          }
-        });
       });
     });
-  });
   }); // Close ensureCategoryExists callback
 });
 
@@ -904,6 +901,36 @@ app.delete("/api/expenses/:id", (req, res) => {
       });
     });
   });
+});
+
+// Bulk delete expenses
+app.post("/api/expenses/bulk-delete", (req, res) => {
+  try {
+    const { ids } = req.body;
+    
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Invalid request: ids must be a non-empty array" });
+    }
+    
+    const placeholders = ids.map(() => '?').join(',');
+    const deleteQuery = `DELETE FROM expenses WHERE id IN (${placeholders})`;
+    
+    db.query(deleteQuery, ids, (err, results) => {
+      if (err) {
+        console.error("Error bulk deleting expenses:", err);
+        return res.status(500).json({ error: "Failed to delete expenses" });
+      }
+      
+      logger.info(`Bulk deleted ${results.affectedRows} expenses`);
+      res.json({ 
+        message: "Expenses deleted successfully",
+        deletedCount: results.affectedRows 
+      });
+    });
+  } catch (error) {
+    console.error("Error in bulk delete:", error);
+    res.status(500).json({ error: "Failed to delete expenses" });
+  }
 });
 
 // Get expense statistics (for dashboard)
@@ -1251,6 +1278,35 @@ app.delete("/api/v1/customertable/:id", (req, res) => {
   });
 });
 
+// Bulk delete customers
+app.post("/api/v1/customertable/bulk-delete", (req, res) => {
+  try {
+    const { ids } = req.body;
+    
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Invalid request: ids must be a non-empty array" });
+    }
+    
+    const placeholders = ids.map(() => '?').join(',');
+    const deleteQuery = `DELETE FROM customertable WHERE customer_id IN (${placeholders})`;
+    
+    db.query(deleteQuery, ids, (err, results) => {
+      if (err) {
+        console.error("Error bulk deleting customers:", err);
+        return res.status(500).json({ error: "Failed to delete customers" });
+      }
+      
+      logger.info(`Bulk deleted ${results.affectedRows} customers`);
+      res.json({ 
+        message: "Customers deleted successfully",
+        deletedCount: results.affectedRows 
+      });
+    });
+  } catch (error) {
+    console.error("Error in bulk delete:", error);
+    res.status(500).json({ error: "Failed to delete customers" });
+  }
+});
 
 // Get customer details by ID for billing address auto-fill
 app.get("/api/v1/customers/:id/billing", (req, res) => {
@@ -2387,17 +2443,7 @@ app.post("/api/invoices", (req, res) => {
     function proceedWithInvoiceCreation(invoice_number) {
       logger.debug('Generated invoice_number:', invoice_number);
 
-      // Start transaction for invoice and items
-      db.beginTransaction((err) => {
-      if (err) {
-        console.error("Error starting transaction:", err);
-        return res.status(500).json({ 
-          error: "Failed to start transaction", 
-          details: err.message 
-        });
-      }
-
-      // Insert invoice
+      // Insert invoice directly (transactions not supported with mysql2 pool)
       const invoiceQuery = `
         INSERT INTO invoice (
           invoice_number, customer_id, customer_name, customer_email, p_number, a_p_number, address,
@@ -2413,21 +2459,19 @@ app.post("/api/invoices", (req, res) => {
         tax_amount || 0, total_amount || 0, bill_date, computed_payment_deadline, payment_days || null, note || '', status
       ];
 
-    logger.debug('Executing invoice query with values:', invoiceValues); // Debug log
+      logger.debug('Executing invoice query with values:', invoiceValues);
 
       db.query(invoiceQuery, invoiceValues, (err, invoiceResult) => {
         if (err) {
           console.error("Error creating invoice:", err);
-          return db.rollback(() => {
-            res.status(500).json({ 
-              error: "Failed to create invoice", 
-              details: err.message 
-            });
+          return res.status(500).json({ 
+            error: "Failed to create invoice", 
+            details: err.message 
           });
         }
 
-  const invoiceId = invoiceResult.insertId;
-  logger.info('Invoice created with ID:', invoiceId);
+        const invoiceId = invoiceResult.insertId;
+        logger.info('Invoice created with ID:', invoiceId);
 
         // Insert invoice items
         if (items.length > 0) {
@@ -2450,77 +2494,34 @@ app.post("/api/invoices", (req, res) => {
           db.query(itemsQuery, [itemsValues], (err, itemsResult) => {
             if (err) {
               console.error("Error creating invoice items:", err);
-              return db.rollback(() => {
-                res.status(500).json({ 
-                  error: "Failed to create invoice items", 
-                  details: err.message 
-                });
+              return res.status(500).json({ 
+                error: "Failed to create invoice items", 
+                details: err.message 
               });
             }
 
-            // Commit transaction
-            db.commit((err) => {
-              if (err) {
-                console.error("Error committing transaction:", err);
-                return db.rollback(() => {
-                  res.status(500).json({ 
-                    error: "Failed to commit transaction", 
-                    details: err.message 
-                  });
-                });
+            logger.info('Invoice and items created successfully');
+
+            // ✅ CREATE AUTOMATIC LEDGER ENTRY FOR INVOICE (DEBIT - Receivable)
+            createLedgerEntriesForInvoice({
+              customer_id,
+              invoice_number,
+              bill_date,
+              payment_deadline: computed_payment_deadline,
+              total_amount,
+              subtotal,
+              tax_rate,
+              tax_amount,
+              status,
+              currency,
+              items
+            }, (ledgerErr, ledgerResult) => {
+              if (ledgerErr) {
+                logger.error('Failed to create ledger entry for invoice:', ledgerErr);
+                // Don't fail the invoice creation, just log the error
               }
-
-              logger.info('Invoice and items created successfully');
-
-              // ✅ CREATE AUTOMATIC LEDGER ENTRY FOR INVOICE (DEBIT - Receivable)
-              createLedgerEntriesForInvoice({
-                customer_id,
-                invoice_number,
-                bill_date,
-                payment_deadline: computed_payment_deadline,
-                total_amount,
-                subtotal,
-                tax_rate,
-                tax_amount,
-                status,
-                currency,
-                items
-              }, (ledgerErr, ledgerResult) => {
-                if (ledgerErr) {
-                  logger.error('Failed to create ledger entry for invoice:', ledgerErr);
-                  // Don't fail the invoice creation, just log the error
-                }
-              });
-
-              res.status(201).json({ 
-                id: invoiceId, 
-                message: "Invoice created successfully",
-                invoice: {
-                  id: invoiceId,
-                  invoice_number,
-                  customer_name,
-                  customer_email,
-                  total_amount,
-                  status,
-                  items_count: items.length
-                }
-              });
             });
-          });
-        } else {
-          // No items, just commit invoice
-          db.commit((err) => {
-            if (err) {
-              console.error("Error committing transaction:", err);
-              return db.rollback(() => {
-                res.status(500).json({ 
-                  error: "Failed to commit transaction", 
-                  details: err.message 
-                });
-              });
-            }
 
-            logger.info('Invoice created successfully');
             res.status(201).json({ 
               id: invoiceId, 
               message: "Invoice created successfully",
@@ -2530,14 +2531,28 @@ app.post("/api/invoices", (req, res) => {
                 customer_name,
                 customer_email,
                 total_amount,
-                status
+                status,
+                items_count: items.length
               }
             });
           });
+        } else {
+          logger.info('Invoice created successfully');
+          res.status(201).json({ 
+            id: invoiceId, 
+            message: "Invoice created successfully",
+            invoice: {
+              id: invoiceId,
+              invoice_number,
+              customer_name,
+              customer_email,
+              total_amount,
+              status
+            }
+          });
         }
       });
-    });
-    } // Close proceedWithInvoiceCreation function
+    }
     }); // Close db.query callback
 });
 
@@ -2567,136 +2582,101 @@ app.put("/api/invoices/:id", (req, res) => {
     return res.status(400).json({ error: "payment_deadline or bill_date with payment_days is required" });
   }
 
-  // Start a transaction to update both invoice and items
-  db.beginTransaction((err) => {
+  // Update invoice directly (transactions not supported with mysql2 pool)
+  const updateInvoiceQuery = `
+    UPDATE invoice SET
+      customer_name = ?, customer_email = ?, p_number = ?, a_p_number = ?, address = ?,
+      st_reg_no = ?, ntn_number = ?, currency = ?, subtotal = ?, tax_rate = ?, 
+      tax_amount = ?, total_amount = ?, bill_date = ?, payment_deadline = ?, 
+      note = ?, status = ?, updated_at = NOW()
+    WHERE id = ?
+  `;
+
+  const invoiceValues = [
+    customer_name, customer_email, p_number, a_p_number, address,
+    st_reg_no, ntn_number, currency, subtotal, tax_rate, tax_amount,
+    total_amount, bill_date, computed_payment_deadline, note, status, id
+  ];
+
+  db.query(updateInvoiceQuery, invoiceValues, (err, results) => {
     if (err) {
-      console.error("Error starting transaction:", err);
-      return res.status(500).json({ error: "Failed to start transaction" });
+      console.error("Error updating invoice:", err);
+      return res.status(500).json({ error: "Failed to update invoice" });
+    }
+    
+    if (results.affectedRows === 0) {
+      return res.status(404).json({ error: "Invoice not found" });
     }
 
-    // Update main invoice record
-    const updateInvoiceQuery = `
-      UPDATE invoice SET
-        customer_name = ?, customer_email = ?, p_number = ?, a_p_number = ?, address = ?,
-        st_reg_no = ?, ntn_number = ?, currency = ?, subtotal = ?, tax_rate = ?, 
-        tax_amount = ?, total_amount = ?, bill_date = ?, payment_deadline = ?, 
-        note = ?, status = ?, updated_at = NOW()
-      WHERE id = ?
-    `;
-
-    const invoiceValues = [
-      customer_name, customer_email, p_number, a_p_number, address,
-      st_reg_no, ntn_number, currency, subtotal, tax_rate, tax_amount,
-      total_amount, bill_date, computed_payment_deadline, note, status, id
-    ];
-
-    db.query(updateInvoiceQuery, invoiceValues, (err, results) => {
+    // Delete existing items
+    const deleteItemsQuery = "DELETE FROM invoice_items WHERE invoice_id = ?";
+    
+    db.query(deleteItemsQuery, [id], (err) => {
       if (err) {
-        console.error("Error updating invoice:", err);
-        return db.rollback(() => {
-          res.status(500).json({ error: "Failed to update invoice" });
-        });
-      }
-      
-      if (results.affectedRows === 0) {
-        return db.rollback(() => {
-          res.status(404).json({ error: "Invoice not found" });
-        });
+        console.error("Error deleting existing items:", err);
+        return res.status(500).json({ error: "Failed to delete existing items" });
       }
 
-      // Delete existing items
-      const deleteItemsQuery = "DELETE FROM invoice_items WHERE invoice_id = ?";
-      
-      db.query(deleteItemsQuery, [id], (err) => {
-        if (err) {
-          console.error("Error deleting existing items:", err);
-          return db.rollback(() => {
-            res.status(500).json({ error: "Failed to delete existing items" });
-          });
-        }
+      // Insert new items if provided
+      if (items && Array.isArray(items) && items.length > 0) {
+        const insertItemQuery = `
+          INSERT INTO invoice_items (invoice_id, item_no, description, quantity, unit, rate, net_weight, amount, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `;
 
-        // Insert new items if provided
-        if (items && Array.isArray(items) && items.length > 0) {
-          const insertItemQuery = `
-            INSERT INTO invoice_items (invoice_id, item_no, description, quantity, unit, rate, net_weight, amount, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
-          `;
+        let completedInserts = 0;
+        let insertError = false;
 
-          let completedInserts = 0;
-          let insertError = false;
+        items.forEach((item, index) => {
+          const itemValues = [
+            id,
+            item.item_no || (index + 1),
+            item.description || '',
+            parseFloat(item.quantity) || 0,
+            item.unit || '',
+            parseFloat(item.rate) || 0,
+            (item.net_weight !== undefined && item.net_weight !== null) ? parseFloat(item.net_weight) : 0,
+            parseFloat(item.amount) || 0
+          ];
 
-          items.forEach((item, index) => {
-            const itemValues = [
-              id,
-              item.item_no || (index + 1),
-              item.description || '',
-              parseFloat(item.quantity) || 0,
-              item.unit || '',
-              parseFloat(item.rate) || 0,
-              (item.net_weight !== undefined && item.net_weight !== null) ? parseFloat(item.net_weight) : 0,
-              parseFloat(item.amount) || 0
-            ];
+          db.query(insertItemQuery, itemValues, (err) => {
+            if (err && !insertError) {
+              console.error("Error inserting item:", err);
+              insertError = true;
+              return res.status(500).json({ error: "Failed to insert invoice items" });
+            }
 
-            db.query(insertItemQuery, itemValues, (err) => {
-              if (err && !insertError) {
-                console.error("Error inserting item:", err);
-                insertError = true;
-                return db.rollback(() => {
-                  res.status(500).json({ error: "Failed to insert invoice items" });
-                });
-              }
+            completedInserts++;
+            
+            if (completedInserts === items.length && !insertError) {
+              // All items inserted successfully
+              logger.info('Invoice updated successfully with items');
+              handleInvoicePaymentIfNeeded(id, status);
 
-              completedInserts++;
-              
-              if (completedInserts === items.length && !insertError) {
-                // All items inserted successfully
-                db.commit((err) => {
-                  if (err) {
-                    console.error("Error committing transaction:", err);
-                    return db.rollback(() => {
-                      res.status(500).json({ error: "Failed to commit transaction" });
-                    });
-                  }
-                  
-                  logger.info('Invoice updated successfully with items');
-
-                  // Move payment check AFTER response to avoid duplication
-                  handleInvoicePaymentIfNeeded(id, status);
-
-                  res.json({ 
-                    message: "Invoice updated successfully",
-                    id: id,
-                    itemsUpdated: items.length
-                  });
-                });
-              }
-            });
-          });
-        } else {
-          // No items to insert, just commit the transaction
-          db.commit((err) => {
-            if (err) {
-              console.error("Error committing transaction:", err);
-              return db.rollback(() => {
-                res.status(500).json({ error: "Failed to commit transaction" });
+              res.json({ 
+                message: "Invoice updated successfully",
+                id: id,
+                itemsUpdated: items.length
               });
             }
+          });
+        });
+      } else {
+        // No items to insert
+        logger.info('Invoice updated successfully');
+        handleInvoicePaymentIfNeeded(id, status);
+
+        res.json({ 
+          message: "Invoice updated successfully",
+          id: id,
+          itemsUpdated: 0
+        });
+      }
+    });
+  });
             
             logger.info('Invoice updated successfully without items');
 
-            // Move payment check AFTER response to avoid duplication
-            handleInvoicePaymentIfNeeded(id, status);
-
-            res.json({ 
-              message: "Invoice updated successfully",
-              id: id,
-              itemsUpdated: 0
-            });
-          });
-        }
-      });
-    });
-  });
 });
 
 // Delete invoice
@@ -2716,6 +2696,50 @@ app.delete("/api/invoices/:id", (req, res) => {
     }
     res.json({ message: "Invoice deleted successfully" });
   });
+});
+
+// Bulk delete invoices
+app.post("/api/invoices/bulk-delete", (req, res) => {
+  try {
+    const { ids } = req.body;
+    
+    // Validate request
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Invalid request: ids must be a non-empty array" });
+    }
+    
+    // Create placeholders for SQL query
+    const placeholders = ids.map(() => '?').join(',');
+    
+    // First delete invoice items
+    const deleteItemsQuery = `DELETE FROM invoice_items WHERE invoice_id IN (${placeholders})`;
+    
+    db.query(deleteItemsQuery, ids, (err) => {
+      if (err) {
+        console.error("Error deleting invoice items:", err);
+        return res.status(500).json({ error: "Failed to delete invoice items" });
+      }
+      
+      // Then delete invoices
+      const deleteInvoicesQuery = `DELETE FROM invoice WHERE id IN (${placeholders})`;
+      
+      db.query(deleteInvoicesQuery, ids, (err, results) => {
+        if (err) {
+          console.error("Error deleting invoices:", err);
+          return res.status(500).json({ error: "Failed to delete invoices" });
+        }
+        
+        logger.info(`Bulk deleted ${results.affectedRows} invoices`);
+        res.json({ 
+          message: "Invoices deleted successfully",
+          deletedCount: results.affectedRows 
+        });
+      });
+    });
+  } catch (error) {
+    console.error("Error in bulk delete:", error);
+    res.status(500).json({ error: "Failed to delete invoices" });
+  }
 });
 
 // --- Transaction History Routes ---
@@ -4369,6 +4393,48 @@ app.delete("/api/purchase-orders/:id", (req, res) => {
   });
 });
 
+// Bulk delete purchase orders
+app.post("/api/purchase-orders/bulk-delete", (req, res) => {
+  try {
+    const { ids } = req.body;
+    
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Invalid request: ids must be a non-empty array" });
+    }
+    
+    const placeholders = ids.map(() => '?').join(',');
+    
+    // First delete related PO invoices and items
+    const deleteInvoicesQuery = `DELETE FROM po_invoices WHERE po_number IN (SELECT po_number FROM purchase_orders WHERE id IN (${placeholders}))`;
+    
+    db.query(deleteInvoicesQuery, ids, (err) => {
+      if (err) {
+        console.error("Error deleting PO invoices:", err);
+        return res.status(500).json({ error: "Failed to delete PO invoices" });
+      }
+      
+      // Then delete POs
+      const deleteQuery = `DELETE FROM purchase_orders WHERE id IN (${placeholders})`;
+      
+      db.query(deleteQuery, ids, (err, results) => {
+        if (err) {
+          console.error("Error bulk deleting purchase orders:", err);
+          return res.status(500).json({ error: "Failed to delete purchase orders" });
+        }
+        
+        logger.info(`Bulk deleted ${results.affectedRows} purchase orders`);
+        res.json({ 
+          message: "Purchase orders deleted successfully",
+          deletedCount: results.affectedRows 
+        });
+      });
+    });
+  } catch (error) {
+    console.error("Error in bulk delete:", error);
+    res.status(500).json({ error: "Failed to delete purchase orders" });
+  }
+});
+
 // --- PO Invoice Routes ---
 
 // Create invoice from PO
@@ -5011,187 +5077,153 @@ app.get("/api/po-summaries", (req, res) => {
     res.json(results || []);
   });
 });
-
 // Delete PO invoice with proper tracking and history
 app.delete("/api/po-invoices/:id", (req, res) => {
   const { id } = req.params;
   
   logger.info(`Deleting PO invoice with ID: ${id}`);
   
-  // Start transaction to ensure data consistency
-  db.beginTransaction((err) => {
+  // Get the PO invoice details before deletion for tracking (no transaction needed)
+  const getInvoiceQuery = `
+    SELECT 
+      pi.*,
+      po.po_number as po_number_check,
+      po.total_amount as po_total_amount
+    FROM po_invoices pi
+    LEFT JOIN purchase_orders po ON pi.po_number = po.po_number
+    WHERE pi.id = ?
+  `;
+  
+  db.query(getInvoiceQuery, [id], (err, invoiceResults) => {
     if (err) {
-      console.error("Error starting transaction:", err);
+      console.error("Error fetching PO invoice for deletion:", err);
       return res.status(500).json({ 
-        message: "Failed to start transaction", 
+        message: "Failed to fetch invoice for deletion", 
         error: err.message 
       });
     }
     
-    // First, get the PO invoice details before deletion for tracking
-    const getInvoiceQuery = `
-      SELECT 
-        pi.*,
-        po.po_number as po_number_check,
-        po.total_amount as po_total_amount
-      FROM po_invoices pi
-      LEFT JOIN purchase_orders po ON pi.po_number = po.po_number
-      WHERE pi.id = ?
+    if (invoiceResults.length === 0) {
+      return res.status(404).json({ message: "PO invoice not found" });
+    }
+    
+    const invoiceToDelete = invoiceResults[0];
+    logger.debug('Invoice to delete:', invoiceToDelete);
+    
+    // Create deletion history record before actual deletion
+    const historyQuery = `
+      INSERT INTO po_deletion_history (
+        po_invoice_id,
+        invoice_number,
+        po_number,
+        customer_name,
+        invoice_amount,
+        invoice_date,
+        deletion_date,
+        deletion_reason,
+        deleted_by
+      ) VALUES (?, ?, ?, ?, ?, ?, NOW(), 'Manual deletion via system', 'System User')
     `;
     
-    db.query(getInvoiceQuery, [id], (err, invoiceResults) => {
+    db.query(historyQuery, [
+      invoiceToDelete.id,
+      invoiceToDelete.invoice_number,
+      invoiceToDelete.po_number,
+      invoiceToDelete.customer_name,
+      invoiceToDelete.total_amount,
+      invoiceToDelete.invoice_date
+    ], (err, historyResult) => {
       if (err) {
-        console.error("Error fetching PO invoice for deletion:", err);
-        return db.rollback(() => {
-          res.status(500).json({ 
-            message: "Failed to fetch invoice for deletion", 
-            error: err.message 
-          });
-        });
+        console.error("Error creating deletion history (table might not exist):", err);
+        // Continue with deletion even if history table doesn't exist
+      } else {
+        logger.info('Deletion history recorded successfully');
       }
       
-      if (invoiceResults.length === 0) {
-        return db.rollback(() => {
-          res.status(404).json({ message: "PO invoice not found" });
-        });
-      }
-      
-      const invoiceToDelete = invoiceResults[0];
-  logger.debug('Invoice to delete:', invoiceToDelete);
-      
-      // Create deletion history record before actual deletion
-      const historyQuery = `
-        INSERT INTO po_deletion_history (
-          po_invoice_id,
-          invoice_number,
-          po_number,
-          customer_name,
-          invoice_amount,
-          invoice_date,
-          deletion_date,
-          deletion_reason,
-          deleted_by
-        ) VALUES (?, ?, ?, ?, ?, ?, NOW(), 'Manual deletion via system', 'System User')
-      `;
-      
-      db.query(historyQuery, [
-        invoiceToDelete.id,
-        invoiceToDelete.invoice_number,
-        invoiceToDelete.po_number,
-        invoiceToDelete.customer_name,
-        invoiceToDelete.total_amount,
-        invoiceToDelete.invoice_date
-      ], (err, historyResult) => {
+      // Delete related invoice items first
+      const deleteItemsQuery = "DELETE FROM po_invoice_items WHERE po_invoice_id = ?";
+      db.query(deleteItemsQuery, [id], (err, itemsResult) => {
         if (err) {
-          console.error("Error creating deletion history (table might not exist):", err);
-          // Continue with deletion even if history table doesn't exist
-        } else {
-          logger.info('Deletion history recorded successfully');
+          console.error("Error deleting PO invoice items:", err);
+          // Continue even if items deletion fails (table might not exist)
         }
         
-        // Delete related invoice items first
-        const deleteItemsQuery = "DELETE FROM po_invoice_items WHERE po_invoice_id = ?";
-        db.query(deleteItemsQuery, [id], (err, itemsResult) => {
+        // Now delete the main PO invoice
+        const deleteInvoiceQuery = "DELETE FROM po_invoices WHERE id = ?";
+        db.query(deleteInvoiceQuery, [id], (err, deleteResult) => {
           if (err) {
-            console.error("Error deleting PO invoice items:", err);
-            // Continue even if items deletion fails (table might not exist)
+            console.error("Error deleting PO invoice:", err);
+            return res.status(500).json({ 
+              message: "Failed to delete PO invoice", 
+              error: err.message 
+            });
           }
           
-          // Now delete the main PO invoice
-          const deleteInvoiceQuery = "DELETE FROM po_invoices WHERE id = ?";
-          db.query(deleteInvoiceQuery, [id], (err, deleteResult) => {
+          if (deleteResult.affectedRows === 0) {
+            return res.status(404).json({ message: "PO invoice not found" });
+          }
+          
+          logger.info('PO invoice deleted successfully');
+          
+          // Update PO summary to reflect the deletion
+          const updateSummaryQuery = `
+            INSERT INTO po_invoice_summary (
+              po_number, 
+              po_total_amount, 
+              total_invoiced_amount, 
+              remaining_amount, 
+              invoice_count, 
+              last_invoice_date
+            )
+            SELECT 
+              ?,
+              COALESCE(?, 0),
+              COALESCE(SUM(pi.total_amount), 0),
+              COALESCE(?, 0) - COALESCE(SUM(pi.total_amount), 0),
+              COUNT(pi.id),
+              MAX(pi.invoice_date)
+            FROM po_invoices pi
+            WHERE pi.po_number = ?
+            ON DUPLICATE KEY UPDATE
+              po_total_amount = COALESCE(VALUES(po_total_amount), po_total_amount),
+              total_invoiced_amount = VALUES(total_invoiced_amount),
+              remaining_amount = VALUES(remaining_amount),
+              invoice_count = VALUES(invoice_count),
+              last_invoice_date = VALUES(last_invoice_date),
+              updated_at = CURRENT_TIMESTAMP
+          `;
+          
+          db.query(updateSummaryQuery, [
+            invoiceToDelete.po_number,
+            invoiceToDelete.po_total_amount,
+            invoiceToDelete.po_total_amount,
+            invoiceToDelete.po_number
+          ], (err, summaryResult) => {
             if (err) {
-              console.error("Error deleting PO invoice:", err);
-              return db.rollback(() => {
-                res.status(500).json({ 
-                  message: "Failed to delete PO invoice", 
-                  error: err.message 
-                });
-              });
+              console.error("Error updating PO summary after deletion:", err);
+              // Don't fail the entire operation for summary update issues
+            } else {
+              logger.info('PO summary updated after deletion');
             }
             
-            if (deleteResult.affectedRows === 0) {
-              return db.rollback(() => {
-                res.status(404).json({ message: "PO invoice not found" });
-              });
-            }
+            logger.info('PO invoice deletion completed successfully');
             
-            logger.info('PO invoice deleted successfully');
-            
-            // Update PO summary to reflect the deletion
-            // The trigger should handle this automatically, but let's ensure consistency
-            const updateSummaryQuery = `
-              INSERT INTO po_invoice_summary (
-                po_number, 
-                po_total_amount, 
-                total_invoiced_amount, 
-                remaining_amount, 
-                invoice_count, 
-                last_invoice_date
-              )
-              SELECT 
-                ?,
-                COALESCE(?, 0),
-                COALESCE(SUM(pi.total_amount), 0),
-                COALESCE(?, 0) - COALESCE(SUM(pi.total_amount), 0),
-                COUNT(pi.id),
-                MAX(pi.invoice_date)
-              FROM po_invoices pi
-              WHERE pi.po_number = ?
-              ON DUPLICATE KEY UPDATE
-                po_total_amount = COALESCE(VALUES(po_total_amount), po_total_amount),
-                total_invoiced_amount = VALUES(total_invoiced_amount),
-                remaining_amount = VALUES(remaining_amount),
-                invoice_count = VALUES(invoice_count),
-                last_invoice_date = VALUES(last_invoice_date),
-                updated_at = CURRENT_TIMESTAMP
-            `;
-            
-            db.query(updateSummaryQuery, [
-              invoiceToDelete.po_number,
-              invoiceToDelete.po_total_amount,
-              invoiceToDelete.po_total_amount,
-              invoiceToDelete.po_number
-            ], (err, summaryResult) => {
-              if (err) {
-                console.error("Error updating PO summary after deletion:", err);
-                // Don't fail the entire operation for summary update issues
-              } else {
-                logger.info('PO summary updated after deletion');
+            // Return success response with deletion details
+            res.json({
+              message: "PO invoice deleted successfully",
+              deletedInvoice: {
+                id: invoiceToDelete.id,
+                invoice_number: invoiceToDelete.invoice_number,
+                po_number: invoiceToDelete.po_number,
+                customer_name: invoiceToDelete.customer_name,
+                amount: invoiceToDelete.total_amount,
+                deletion_date: new Date().toISOString()
+              },
+              poUpdate: {
+                po_number: invoiceToDelete.po_number,
+                amount_restored: invoiceToDelete.total_amount,
+                message: `${invoiceToDelete.total_amount} has been restored to PO remaining amount`
               }
-              
-              // Commit the transaction
-              db.commit((err) => {
-                if (err) {
-                  console.error("Error committing transaction:", err);
-                  return db.rollback(() => {
-                    res.status(500).json({ 
-                      message: "Failed to commit deletion transaction", 
-                      error: err.message 
-                    });
-                  });
-                }
-                
-                logger.info('PO invoice deletion completed successfully');
-                
-                // Return success response with deletion details
-                res.json({
-                  message: "PO invoice deleted successfully",
-                  deletedInvoice: {
-                    id: invoiceToDelete.id,
-                    invoice_number: invoiceToDelete.invoice_number,
-                    po_number: invoiceToDelete.po_number,
-                    customer_name: invoiceToDelete.customer_name,
-                    amount: invoiceToDelete.total_amount,
-                    deletion_date: new Date().toISOString()
-                  },
-                  poUpdate: {
-                    po_number: invoiceToDelete.po_number,
-                    amount_restored: invoiceToDelete.total_amount,
-                    message: `${invoiceToDelete.total_amount} has been restored to PO remaining amount`
-                  }
-                });
-              });
             });
           });
         });
@@ -6238,13 +6270,51 @@ process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down server gracefully.');
   server.close(() => {
     logger.info('Server stopped.');
-    process.exit(0);
+    // Close database connection pool
+    if (db) {
+      db.end((err) => {
+        if (err) {
+          logger.error('Error closing database pool:', err);
+        } else {
+          logger.info('Database connection pool closed.');
+        }
+        process.exit(0);
+      });
+    } else {
+      process.exit(0);
+    }
   });
 });
+
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down server gracefully.');
   server.close(() => {
     logger.info('Server stopped.');
-    process.exit(0);
+    // Close database connection pool
+    if (db) {
+      db.end((err) => {
+        if (err) {
+          logger.error('Error closing database pool:', err);
+        } else {
+          logger.info('Database connection pool closed.');
+        }
+        process.exit(0);
+      });
+    } else {
+      process.exit(0);
+    }
   });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception:', err);
+  // Close database gracefully before exiting
+  if (db) {
+    db.end(() => {
+      process.exit(1);
+    });
+  } else {
+    process.exit(1);
+  }
 });

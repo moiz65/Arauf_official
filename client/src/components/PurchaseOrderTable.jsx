@@ -1680,7 +1680,8 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
           </div>
           
           <div className="flex gap-2">
-            {selectedRows.length > 0 && (
+            {/* PO bulk delete is disabled as per user request */}
+            {/* selectedRows.length > 0 && (
               <button
                 onClick={() => {
                   if (window.confirm(`Delete ${selectedRows.length} selected Purchase Order(s)?`)) {
@@ -1706,7 +1707,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                 <Trash2 className="w-4 h-4" />
                 <span>Delete ({selectedRows.length})</span>
               </button>
-            )}
+            ) */}
             
             <button 
               className="flex items-center gap-1 bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors"

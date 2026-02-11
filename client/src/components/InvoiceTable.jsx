@@ -1741,32 +1741,43 @@ const InvoiceManagement = () => {
   };
 
   const handleBulkDelete = async () => {
-    if (selectedRows.length === 0) return;
+    if (!Array.isArray(selectedRows) || selectedRows.length === 0) return;
     
     if (window.confirm(`Are you sure you want to delete ${selectedRows.length} selected invoices?`)) {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/invoices/bulk-delete`, {
+        // Validate IDs are numbers
+        const validIds = selectedRows.filter(id => typeof id === 'number' || !isNaN(id)).map(id => Number(id));
+        
+        if (validIds.length === 0) {
+          showNotification("Error", "Invalid invoice IDs selected");
+          return;
+        }
+        
+        const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+        const response = await fetch(`${apiBaseUrl}/invoices/bulk-delete`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ ids: selectedRows })
+          body: JSON.stringify({ ids: validIds })
         });
         
+        const responseData = await response.json();
+        
         if (!response.ok) {
-          throw new Error('Failed to delete invoices');
+          throw new Error(responseData?.error || 'Failed to delete invoices');
         }
         
-        setInvoicesData(prev => prev.filter(item => !selectedRows.includes(item.id)));
+        setInvoicesData(prev => prev.filter(item => !validIds.includes(Number(item.id))));
         setSelectedRows([]);
         
         // Update tab counts after bulk deletion
         fetchTabCounts();
         
-        showNotification("Bulk delete successful", `${selectedRows.length} invoices have been deleted`);
+        showNotification("Bulk delete successful", `${validIds.length} invoices have been deleted`);
       } catch (error) {
         console.error('Error deleting invoices:', error);
-        showNotification("Error", "Failed to delete invoices");
+        showNotification("Error", error?.message || "Failed to delete invoices");
       }
     }
   };
@@ -1913,7 +1924,7 @@ const InvoiceManagement = () => {
         </div>
 
         {/* Bulk Actions */}
-        {selectedRows.length > 0 && (
+        {/* {selectedRows.length > 0 && (
           <div className="mb-4 p-3 bg-blue-50 rounded-md flex justify-between items-center">
             <div className="text-sm text-blue-800">
               {selectedRows.length} invoice(s) selected
@@ -1926,7 +1937,7 @@ const InvoiceManagement = () => {
               Delete Selected
             </button>
           </div>
-        )}
+        )} */}
 
         {/* Filter Panel */}
         {showFilters && (
