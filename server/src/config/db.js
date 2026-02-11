@@ -5,11 +5,6 @@ const db = mysql.createPool({
   database: "u115615899_arauf_crm",
   user: "u115615899_arauf_crm",
   password: "Admindeveloper@1234", // Add your MySQL password if set
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 0
 });
 
 // Test connection
