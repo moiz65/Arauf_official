@@ -16,7 +16,7 @@ const API_ENDPOINTS = {
     GET: (id) => `${API_BASE_URL}/v1/customertable/${id}`,
     CREATE: `${API_BASE_URL}/v1/customertable`,
     UPDATE: (id) => `${API_BASE_URL}/v1/customertable/${id}`,
-    DELETE: (id) => `${API_BASE_URL}/v1/customertable/${id}`,
+    DELETE: (id) => `${API_BASE_URL}/v1/customertable/${id}`, // Ensure DELETE is a function
   },
 
   // Invoices
@@ -82,6 +82,7 @@ const API_ENDPOINTS = {
     GET: (id) => `${API_BASE_URL}/expenses/${id}`,
     CREATE: `${API_BASE_URL}/expenses`,
     UPDATE: (id) => `${API_BASE_URL}/expenses/${id}`,
+    DELETE: (id) => `${API_BASE_URL}/expenses/${id}`,
   },
 
   // Financial Years

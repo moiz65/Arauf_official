@@ -1,10 +1,10 @@
 const mysql = require("mysql2/promise");
 
 const db = mysql.createPool({
-  host: "srv1624.hstgr.io",
-  database: "u115615899_arauf_crm",
-  user: "u115615899_arauf_crm",
-  password: "Admindeveloper@1234", // Add your MySQL password if set
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "arauf_crm_main",
 });
 
 // Test connection

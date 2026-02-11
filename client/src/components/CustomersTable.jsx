@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   FileDown,
@@ -12,12 +12,12 @@ import {
   Phone,
   MapPin,
   Calendar,
-  Building
-} from 'lucide-react';
-import { useClickOutside } from '../hooks/useClickOutside';
-import { API_ENDPOINTS } from '../config/api';
+  Building,
+} from "lucide-react";
+import { useClickOutside } from "../hooks/useClickOutside";
+import { API_ENDPOINTS } from "../config/api";
 
-console.log('CustomersTable - API_ENDPOINTS:', API_ENDPOINTS);
+console.log("CustomersTable - API_ENDPOINTS:", API_ENDPOINTS);
 
 const ITEMS_PER_PAGE = 10;
 
@@ -25,7 +25,7 @@ const CustomersTable = () => {
   const [customersData, setCustomersData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -61,8 +61,8 @@ const CustomersTable = () => {
       setCustomersData(data);
       setError(null);
     } catch (err) {
-      console.error('Error fetching customers:', err);
-      setError('Failed to fetch customers. Please try again later.');
+      console.error("Error fetching customers:", err);
+      setError("Failed to fetch customers. Please try again later.");
       setCustomersData([]);
     } finally {
       setLoading(false);
@@ -76,23 +76,30 @@ const CustomersTable = () => {
         setActiveDropdown(null);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
   const navigate = useNavigate();
 
-  const filteredCustomers = customersData
-    .filter(customer =>
-      (customer?.customer || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (customer?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (customer?.phone || '').includes(searchTerm) ||
-      (customer?.company || '').toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    ;
-
+  const filteredCustomers = customersData.filter(
+    (customer) =>
+      (customer?.customer || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (customer?.email || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      (customer?.phone || "").includes(searchTerm) ||
+      (customer?.company || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()),
+  );
   const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE) || 1;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const visibleCustomers = filteredCustomers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const visibleCustomers = filteredCustomers.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE,
+  );
 
   // Clamp currentPage if filters reduce totalPages
   useEffect(() => {
@@ -100,16 +107,19 @@ const CustomersTable = () => {
   }, [totalPages]);
 
   const toggleSelectAll = () => {
-    if (selectedRows.length === visibleCustomers.length && visibleCustomers.length > 0) {
+    if (
+      selectedRows.length === visibleCustomers.length &&
+      visibleCustomers.length > 0
+    ) {
       setSelectedRows([]);
     } else {
-      setSelectedRows(visibleCustomers.map(customer => customer.customer_id));
+      setSelectedRows(visibleCustomers.map((customer) => customer.customer_id));
     }
   };
 
   const toggleSelectRow = (id) => {
-    setSelectedRows(prev =>
-      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    setSelectedRows((prev) =>
+      prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id],
     );
   };
 
@@ -123,12 +133,12 @@ const CustomersTable = () => {
   // ...existing code...
 
   const formatDate = (iso) => {
-    if (!iso) return 'N/A';
+    if (!iso) return "N/A";
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
     // dd/mm/yyyy
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
   };
@@ -151,22 +161,49 @@ const CustomersTable = () => {
     setActiveDropdown(null);
   };
 
+  // In CustomersTable.jsx - handleDelete function
   const handleDelete = async (customer) => {
-    if (window.confirm(`Are you sure you want to delete customer "${customer.customer}"?`)) {
+    if (
+      window.confirm(
+        `Are you sure you want to delete customer "${customer.customer}"?`,
+      )
+    ) {
       try {
-        const response = await fetch(API_ENDPOINTS.CUSTOMERS.UPDATE(customer.customer_id), {
-          method: 'DELETE'
+        // FIX: Check if DELETE exists, otherwise construct URL manually
+        let deleteUrl;
+
+        if (
+          API_ENDPOINTS.CUSTOMERS.DELETE &&
+          typeof API_ENDPOINTS.CUSTOMERS.DELETE === "function"
+        ) {
+          deleteUrl = API_ENDPOINTS.CUSTOMERS.DELETE(customer.customer_id);
+        } else {
+          // Manual URL construction if DELETE is missing
+          const baseUrl =
+            process.env.REACT_APP_API_BASE_URL || "http://localhost:5000/api";
+          deleteUrl = `${baseUrl}/v1/customertable/${customer.customer_id}`;
+          console.log("DELETE endpoint missing, using manual URL:", deleteUrl);
+        }
+
+        const response = await fetch(deleteUrl, {
+          method: "DELETE",
         });
 
         if (!response.ok) {
-          throw new Error('Failed to delete customer');
+          throw new Error("Failed to delete customer");
         }
 
         await fetchCustomers();
-        showNotification("Contact Person deleted", `Contact Person '${customer.customer}' has been deleted.`);
+        showNotification(
+          "Contact Person deleted",
+          `Contact Person '${customer.customer}' has been deleted.`,
+        );
       } catch (err) {
-        console.error('Error deleting contact person:', err);
-        showNotification("Error", "Failed to delete contact person. Please try again.");
+        console.error("Error deleting contact person:", err);
+        showNotification(
+          "Error",
+          "Failed to delete contact person. Please try again.",
+        );
       }
     }
     setActiveDropdown(null);
@@ -175,42 +212,50 @@ const CustomersTable = () => {
   const handleBulkDelete = async () => {
     if (selectedRows.length === 0) return;
 
-    if (window.confirm(`Are you sure you want to delete ${selectedRows.length} selected customers?`)) {
+    if (
+      window.confirm(
+        `Are you sure you want to delete ${selectedRows.length} selected customers?`,
+      )
+    ) {
       setIsBulkDeleting(true);
 
       try {
-        const deletePromises = selectedRows.map(id =>
+        const deletePromises = selectedRows.map((id) =>
           fetch(API_ENDPOINTS.CUSTOMERS.DELETE(id), {
-            method: 'DELETE'
-          })
+            method: "DELETE",
+          }),
         );
 
         await Promise.all(deletePromises);
 
         await fetchCustomers();
-        showNotification("Bulk delete successful", `${selectedRows.length} customers have been deleted`);
+        showNotification(
+          "Bulk delete successful",
+          `${selectedRows.length} customers have been deleted`,
+        );
         setSelectedRows([]);
       } catch (err) {
-        console.error('Error during bulk delete:', err);
-        showNotification("Error", "Failed to delete some customers. Please try again.");
+        console.error("Error during bulk delete:", err);
+        showNotification(
+          "Error",
+          "Failed to delete some customers. Please try again.",
+        );
       } finally {
         setIsBulkDeleting(false);
       }
     }
   };
 
-
-
   const handleAddCustomer = () => {
     const newCustomer = {
-      customer: '',
-      company: '',
-      date: new Date().toISOString().split('T')[0],
-      phone: '',
-      address: '',
-      email: '',
-      stn: '',
-      ntn: ''
+      customer: "",
+      company: "",
+      date: new Date().toISOString().split("T")[0],
+      phone: "",
+      address: "",
+      email: "",
+      stn: "",
+      ntn: "",
     };
 
     setEditingCustomer(newCustomer);
@@ -221,21 +266,32 @@ const CustomersTable = () => {
   const handleSaveCustomer = async (updatedCustomer) => {
     try {
       // Check for duplicate email, phone, STN, or NTN (excluding current customer when editing)
-      const duplicateCheck = customersData.find(customer => {
+      const duplicateCheck = customersData.find((customer) => {
         // Skip the current customer when editing
-        if (updatedCustomer.customer_id && customer.customer_id === updatedCustomer.customer_id) {
+        if (
+          updatedCustomer.customer_id &&
+          customer.customer_id === updatedCustomer.customer_id
+        ) {
           return false;
         }
 
         // Check if any unique identifier matches
-        const emailMatch = customer.email && updatedCustomer.email && 
-                          customer.email.toLowerCase() === updatedCustomer.email.toLowerCase();
-        const phoneMatch = customer.phone && updatedCustomer.phone && 
-                          customer.phone === updatedCustomer.phone;
-        const stnMatch = customer.stn && updatedCustomer.stn && 
-                        customer.stn === updatedCustomer.stn;
-        const ntnMatch = customer.ntn && updatedCustomer.ntn && 
-                        customer.ntn === updatedCustomer.ntn;
+        const emailMatch =
+          customer.email &&
+          updatedCustomer.email &&
+          customer.email.toLowerCase() === updatedCustomer.email.toLowerCase();
+        const phoneMatch =
+          customer.phone &&
+          updatedCustomer.phone &&
+          customer.phone === updatedCustomer.phone;
+        const stnMatch =
+          customer.stn &&
+          updatedCustomer.stn &&
+          customer.stn === updatedCustomer.stn;
+        const ntnMatch =
+          customer.ntn &&
+          updatedCustomer.ntn &&
+          customer.ntn === updatedCustomer.ntn;
 
         return emailMatch || phoneMatch || stnMatch || ntnMatch;
       });
@@ -243,22 +299,25 @@ const CustomersTable = () => {
       if (duplicateCheck) {
         // Determine which field is duplicate
         let duplicateFields = [];
-        if (duplicateCheck.email.toLowerCase() === updatedCustomer.email.toLowerCase()) {
-          duplicateFields.push('Email');
+        if (
+          duplicateCheck.email.toLowerCase() ===
+          updatedCustomer.email.toLowerCase()
+        ) {
+          duplicateFields.push("Email");
         }
         if (duplicateCheck.phone === updatedCustomer.phone) {
-          duplicateFields.push('Phone Number');
+          duplicateFields.push("Phone Number");
         }
         if (duplicateCheck.stn === updatedCustomer.stn) {
-          duplicateFields.push('STN');
+          duplicateFields.push("STN");
         }
         if (duplicateCheck.ntn === updatedCustomer.ntn) {
-          duplicateFields.push('NTN');
+          duplicateFields.push("NTN");
         }
 
         showNotification(
           "Duplicate Co",
-          `A customer with the same ${duplicateFields.join(', ')} already exists: "${duplicateCheck.customer}"`
+          `A customer with the same ${duplicateFields.join(", ")} already exists: "${duplicateCheck.customer}"`,
         );
         return;
       }
@@ -273,52 +332,69 @@ const CustomersTable = () => {
         address: updatedCustomer.address,
         email: updatedCustomer.email,
         stn: updatedCustomer.stn,
-        ntn: updatedCustomer.ntn
+        ntn: updatedCustomer.ntn,
       };
 
-      const baseApi = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
+      const baseApi =
+        process.env.REACT_APP_API_BASE_URL || "http://localhost:5000/api";
 
       if (updatedCustomer.customer_id) {
-        const url = (API_ENDPOINTS && API_ENDPOINTS.CUSTOMERS && typeof API_ENDPOINTS.CUSTOMERS.UPDATE === 'function')
-          ? API_ENDPOINTS.CUSTOMERS.UPDATE(updatedCustomer.customer_id)
-          : `${baseApi}/v1/customertable/${updatedCustomer.customer_id}`;
+        const url =
+          API_ENDPOINTS &&
+          API_ENDPOINTS.CUSTOMERS &&
+          typeof API_ENDPOINTS.CUSTOMERS.UPDATE === "function"
+            ? API_ENDPOINTS.CUSTOMERS.UPDATE(updatedCustomer.customer_id)
+            : `${baseApi}/v1/customertable/${updatedCustomer.customer_id}`;
 
         if (!url) {
-          console.error('Update URL is undefined. API endpoints:', API_ENDPOINTS);
-          throw new Error('API endpoint for updating customer is not configured');
+          console.error(
+            "Update URL is undefined. API endpoints:",
+            API_ENDPOINTS,
+          );
+          throw new Error(
+            "API endpoint for updating customer is not configured",
+          );
         }
 
-        console.log('Updating customer at:', url);
+        console.log("Updating customer at:", url);
         response = await fetch(url, {
-          method: 'PUT',
+          method: "PUT",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
       } else {
-        const url = (API_ENDPOINTS && API_ENDPOINTS.CUSTOMERS && API_ENDPOINTS.CUSTOMERS.CREATE)
-          ? API_ENDPOINTS.CUSTOMERS.CREATE
-          : `${baseApi}/v1/customertable`;
+        const url =
+          API_ENDPOINTS &&
+          API_ENDPOINTS.CUSTOMERS &&
+          API_ENDPOINTS.CUSTOMERS.CREATE
+            ? API_ENDPOINTS.CUSTOMERS.CREATE
+            : `${baseApi}/v1/customertable`;
 
         if (!url) {
-          console.error('Create URL is undefined. API endpoints:', API_ENDPOINTS);
-          throw new Error('API endpoint for creating customer is not configured');
+          console.error(
+            "Create URL is undefined. API endpoints:",
+            API_ENDPOINTS,
+          );
+          throw new Error(
+            "API endpoint for creating customer is not configured",
+          );
         }
 
-        console.log('Creating customer at:', url);
+        console.log("Creating customer at:", url);
         response = await fetch(url, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
       }
 
       if (!response.ok) {
         // try to parse error body if available
-        let errText = 'Failed to save customer';
+        let errText = "Failed to save customer";
         try {
           const errJson = await response.json();
           errText = errJson.message || JSON.stringify(errJson);
@@ -331,21 +407,26 @@ const CustomersTable = () => {
       setEditingCustomer(null);
 
       showNotification(
-        updatedCustomer.customer_id ? "Contact Person updated" : "Contact Person created",
-        `Contact Person '${updatedCustomer.customer}' has been ${updatedCustomer.customer_id ? 'updated' : 'created'}.`
+        updatedCustomer.customer_id
+          ? "Contact Person updated"
+          : "Contact Person created",
+        `Contact Person '${updatedCustomer.customer}' has been ${updatedCustomer.customer_id ? "updated" : "created"}.`,
       );
     } catch (err) {
-      console.error('Error saving contact person:', err);
-      showNotification("Error", err.message || "Failed to save contact person. Please try again.");
+      console.error("Error saving contact person:", err);
+      showNotification(
+        "Error",
+        err.message || "Failed to save contact person. Please try again.",
+      );
     }
   };
 
   const handleAction = (action, customer) => {
     switch (action) {
-      case 'edit':
+      case "edit":
         handleEdit(customer);
         break;
-      case 'delete':
+      case "delete":
         handleDelete(customer);
         break;
 
@@ -368,15 +449,15 @@ const CustomersTable = () => {
       let value = rawValue;
 
       // If editing customer name, allow letters and spaces only
-      if (name === 'customer') {
-        value = (value || '').toString().replace(/[^A-Za-z\s]/g, '');
+      if (name === "customer") {
+        value = (value || "").toString().replace(/[^A-Za-z\s]/g, "");
         // collapse multiple spaces to a single space and preserve typing
-        value = value.replace(/\s+/g, ' ');
+        value = value.replace(/\s+/g, " ");
       }
 
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
     };
 
@@ -384,15 +465,29 @@ const CustomersTable = () => {
       e.preventDefault();
 
       // Basic validation: ensure required fields exist
-      if (!formData.customer || !formData.email || !formData.phone || !formData.address || !formData.date || !formData.stn || !formData.ntn) {
-        showNotification('Validation', 'Please fill all required fields including STN and NTN.');
+      if (
+        !formData.customer ||
+        !formData.email ||
+        !formData.phone ||
+        !formData.address ||
+        !formData.date ||
+        !formData.stn ||
+        !formData.ntn
+      ) {
+        showNotification(
+          "Validation",
+          "Please fill all required fields including STN and NTN.",
+        );
         return;
       }
 
       // Validate customer name contains only letters and spaces
-      const nameVal = (formData.customer || '').toString().trim();
+      const nameVal = (formData.customer || "").toString().trim();
       if (!/^[A-Za-z]+(?:\s[A-Za-z]+)*$/.test(nameVal)) {
-        showNotification('Validation', 'Contact Person name can contain letters and spaces only');
+        showNotification(
+          "Validation",
+          "Contact Person name can contain letters and spaces only",
+        );
         return;
       }
 
@@ -401,18 +496,28 @@ const CustomersTable = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div ref={editModalRef} className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div
+          ref={editModalRef}
+          className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        >
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <User className="w-5 h-5" />
-            {formData.customer_id ? 'Edit Contact Person' : 'Add New Contact Person'}
+            {formData.customer_id
+              ? "Edit Contact Person"
+              : "Add New Contact Person"}
           </h2>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form
+            onSubmit={handleSubmit}
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person Name *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Contact Person Name *
+              </label>
               <input
                 type="text"
                 name="customer"
-                value={formData.customer || ''}
+                value={formData.customer || ""}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -421,11 +526,13 @@ const CustomersTable = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company
+              </label>
               <input
                 type="text"
                 name="company"
-                value={formData.company || ''}
+                value={formData.company || ""}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter company name"
@@ -433,11 +540,13 @@ const CustomersTable = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address *
+              </label>
               <input
                 type="email"
                 name="email"
-                value={formData.email || ''}
+                value={formData.email || ""}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -446,17 +555,22 @@ const CustomersTable = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone Number *
+              </label>
               <input
                 type="tel"
                 name="phone"
-                value={formData.phone || ''}
+                value={formData.phone || ""}
                 onChange={(e) => {
                   // Allow only numeric values, spaces, parentheses, and + or -
-                  const filteredValue = e.target.value.replace(/[^0-9\-\+\(\)\s]/g, '');
+                  const filteredValue = e.target.value.replace(
+                    /[^0-9\-\+\(\)\s]/g,
+                    "",
+                  );
                   handleChange({
                     target: {
-                      name: 'phone',
+                      name: "phone",
                       value: filteredValue,
                     },
                   });
@@ -467,13 +581,14 @@ const CustomersTable = () => {
               />
             </div>
 
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date
+              </label>
               <input
                 type="date"
                 name="date"
-                value={formData.date || ''}
+                value={formData.date || ""}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -481,11 +596,13 @@ const CustomersTable = () => {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Address
+              </label>
               <input
                 type="text"
                 name="address"
-                value={formData.address || ''}
+                value={formData.address || ""}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -494,11 +611,13 @@ const CustomersTable = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">STN Number *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                STN Number *
+              </label>
               <input
                 type="text"
                 name="stn"
-                value={formData.stn || ''}
+                value={formData.stn || ""}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -507,11 +626,13 @@ const CustomersTable = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">NTN Number *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                NTN Number *
+              </label>
               <input
                 type="text"
                 name="ntn"
-                value={formData.ntn || ''}
+                value={formData.ntn || ""}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -522,7 +643,10 @@ const CustomersTable = () => {
             <div className="md:col-span-2 flex justify-end gap-3 mt-4">
               <button
                 type="button"
-                onClick={() => { setShowEditModal(false); setEditingCustomer(null); }}
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingCustomer(null);
+                }}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
               >
                 Cancel
@@ -531,7 +655,9 @@ const CustomersTable = () => {
                 type="submit"
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
-                {formData.customer_id ? 'Update Contact Person' : 'Create Contact Person'}
+                {formData.customer_id
+                  ? "Update Contact Person"
+                  : "Create Contact Person"}
               </button>
             </div>
           </form>
@@ -577,7 +703,7 @@ const CustomersTable = () => {
         </div>
       )}
 
-      {/* Bulk Actions */}
+      {/* Bulk Actions
       {selectedRows.length > 0 && (
         <div className="mb-4 p-4 bg-blue-50 rounded-lg flex justify-between items-center">
           <div className="text-sm text-blue-800 flex items-center gap-2">
@@ -603,7 +729,7 @@ const CustomersTable = () => {
             </button>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
@@ -685,7 +811,10 @@ const CustomersTable = () => {
               </tr>
             ) : (
               visibleCustomers.map((customer) => (
-                <tr key={customer.customer_id} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={customer.customer_id}
+                  className="hover:bg-gray-50 transition-colors"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <input
                       type="checkbox"
@@ -700,7 +829,9 @@ const CustomersTable = () => {
                         <User className="h-5 w-5 text-blue-600" />
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{customer.customer}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {customer.customer}
+                        </div>
                         {customer.company && (
                           <div className="text-xs text-gray-500 flex items-center gap-1">
                             <Building className="w-3 h-3" />
@@ -721,7 +852,9 @@ const CustomersTable = () => {
                     </div>
                     <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                       <MapPin className="w-3 h-3" />
-                      <span className="truncate max-w-xs">{customer.address}</span>
+                      <span className="truncate max-w-xs">
+                        {customer.address}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap hidden lg:table-cell">
@@ -732,7 +865,9 @@ const CustomersTable = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <button
-                      onClick={() => navigate(`/ledger?customerId=${customer.customer_id}`)}
+                      onClick={() =>
+                        navigate(`/ledger?customerId=${customer.customer_id}`)
+                      }
                       className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition-colors"
                     >
                       View Ledger
@@ -753,20 +888,19 @@ const CustomersTable = () => {
                       >
                         {/* View Ledger moved to its own column */}
                         <button
-                          onClick={() => handleAction('edit', customer)}
+                          onClick={() => handleAction("edit", customer)}
                           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left transition-colors"
                         >
                           <Edit className="w-4 h-4 mr-2" />
                           Edit
                         </button>
                         <button
-                          onClick={() => handleAction('delete', customer)}
+                          onClick={() => handleAction("delete", customer)}
                           className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left transition-colors"
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete
                         </button>
-
                       </div>
                     )}
                   </td>
@@ -781,7 +915,9 @@ const CustomersTable = () => {
       {filteredCustomers.length > ITEMS_PER_PAGE && (
         <div className="flex flex-col sm:flex-row justify-between items-center px-4 py-3 bg-white gap-3 mt-4">
           <div className="text-sm text-gray-700">
-            Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredCustomers.length)} of {filteredCustomers.length} results
+            Showing {startIndex + 1} to{" "}
+            {Math.min(startIndex + ITEMS_PER_PAGE, filteredCustomers.length)} of{" "}
+            {filteredCustomers.length} results
           </div>
           <div className="flex gap-1">
             <button
