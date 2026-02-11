@@ -32,7 +32,12 @@ const db = mysql.createConnection({
   host: "srv1624.hstgr.io",
   user: "u115615899_arauf_crm",
   password: "Admindeveloper@1234",
-  database: "u115615899_arauf_crm"
+  database: "u115615899_arauf_crm",
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0
 });
 
 // Connect to MySQL
