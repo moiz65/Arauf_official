@@ -542,6 +542,14 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
               
               {isCreatingCustomer ? (
                 <div className="grid sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
+                  
+                  <Input
+                    label="Company"
+                    name="company"
+                    value={newCustomer.company}
+                    onChange={handleNewCustomerChange}
+                  />
+
                   <Input
                     label="Contact Person Name *"
                     name="customer"
@@ -550,12 +558,6 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                     required
                   />
                   
-                  <Input
-                    label="Company"
-                    name="company"
-                    value={newCustomer.company}
-                    onChange={handleNewCustomerChange}
-                  />
                   <Input
                     label="Email"
                     type="email"

@@ -487,7 +487,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           @media print {
             @page {
               size: A4 portrait;
-              margin: 8mm;
+              margin: 0;
             }
             
             * {
@@ -497,7 +497,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
             
             body {
               margin: 0 !important;
-              padding: 0 !important;
+              padding: 8mm !important;
               line-height: 1.2 !important;
             }
             
