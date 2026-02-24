@@ -319,7 +319,7 @@ const InvoiceDetailsLayoutImproved = () => {
             <div class="content">
               <!-- Company Header -->
               <div style="text-align: center; padding: 15px; border-bottom: 1px solid #999;">
-                <img src="${Logo}" alt="A Rauf Textile" style="height: 130px; width: auto; max-width: 400px; margin: 0 auto 10px;">
+                <img src="${Logo}" alt="A Rauf Textile" style="height: 200px; width: auto; max-width: 500px; margin: 0 auto 10px;">
                 <div style="font-size: 11px; color: #333;">
                   <p style="margin: 2px 0; font-size: 10px;">Deals in all kind of Greige & Dyed Fabric</p>
                   <p style="margin: 2px 0; font-size: 10px;">ROOM NO. 205 2ND FLOOR SALEHA CHAMBER, PLOT No. B-9/C-1 SITE KARACHI</p>

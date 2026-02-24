@@ -520,7 +520,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
             }
             
             .company-logo {
-              width: 100px !important;
+              width: 160px !important;
               height: auto !important;
               padding-bottom: 8px !important;
             }
@@ -668,7 +668,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
               <!-- Company Logo and Info - Centered -->
               <div style="position: relative; z-index: 10; text-align: center; margin-bottom: 16px;">
                 <div style="display: flex; justify-content: center; margin-bottom: 12px;">
-                  <img src="${Logo}" alt="A Rauf Textile" style="height: 128px; width: auto; max-width: 280px; object-fit: contain;">
+                  <img src="${Logo}" alt="A Rauf Textile" style="height: 200px; width: auto; max-width: 400px; object-fit: contain;">
                 </div>
                 <div style="font-size: 13px; color: #374151;">
                   <p style="font-size: 11px; margin: 2px 0;">Deals in all kind of Greige & Dyed Fabric</p>
