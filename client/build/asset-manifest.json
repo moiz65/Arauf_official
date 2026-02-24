@@ -1,0 +1,24 @@
+{
+  "files": {
+    "main.css": "/static/css/main.a3a7f9f8.css",
+    "main.js": "/static/js/main.4a6c2631.js",
+    "static/js/239.7049e10e.chunk.js": "/static/js/239.7049e10e.chunk.js",
+    "static/js/977.f3e1e2e4.chunk.js": "/static/js/977.f3e1e2e4.chunk.js",
+    "static/js/732.14756914.chunk.js": "/static/js/732.14756914.chunk.js",
+    "static/js/453.28ae1c0e.chunk.js": "/static/js/453.28ae1c0e.chunk.js",
+    "static/media/rauf textile png.png": "/static/media/rauf textile png.1812c7650975a02dbbc9.png",
+    "static/media/signin.png": "/static/media/signin.5bca050aece08a202430.png",
+    "static/media/pfp.png": "/static/media/pfp.5b5ab1051bd823bc2759.png",
+    "index.html": "/index.html",
+    "main.a3a7f9f8.css.map": "/static/css/main.a3a7f9f8.css.map",
+    "main.4a6c2631.js.map": "/static/js/main.4a6c2631.js.map",
+    "239.7049e10e.chunk.js.map": "/static/js/239.7049e10e.chunk.js.map",
+    "977.f3e1e2e4.chunk.js.map": "/static/js/977.f3e1e2e4.chunk.js.map",
+    "732.14756914.chunk.js.map": "/static/js/732.14756914.chunk.js.map",
+    "453.28ae1c0e.chunk.js.map": "/static/js/453.28ae1c0e.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.a3a7f9f8.css",
+    "static/js/main.4a6c2631.js"
+  ]
+}

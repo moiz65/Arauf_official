@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Search,
   FileDown,
@@ -79,7 +78,6 @@ const CustomersTable = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-  const navigate = useNavigate();
 
   const filteredCustomers = customersData.filter(
     (customer) =>
@@ -512,6 +510,20 @@ const CustomersTable = () => {
           >
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company
+              </label>
+              <input
+                type="text"
+                name="company"
+                value={formData.company || ""}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter company name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Contact Person Name *
               </label>
               <input
@@ -522,20 +534,6 @@ const CustomersTable = () => {
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
                 placeholder="Enter customer name"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Company
-              </label>
-              <input
-                type="text"
-                name="company"
-                value={formData.company || ""}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter company name"
               />
             </div>
 
@@ -787,9 +785,9 @@ const CustomersTable = () => {
                 />
               </th>
               <th className="px-6 py-3">Contact Person</th>
+              <th className="px-6 py-3">Company Name</th>
               <th className="px-6 py-3">Contact</th>
               <th className="px-6 py-3 hidden lg:table-cell">Date</th>
-              <th className="px-6 py-3">Ledger</th>
               <th className="px-6 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -832,13 +830,13 @@ const CustomersTable = () => {
                         <div className="text-sm font-medium text-gray-900">
                           {customer.customer}
                         </div>
-                        {customer.company && (
-                          <div className="text-xs text-gray-500 flex items-center gap-1">
-                            <Building className="w-3 h-3" />
-                            {customer.company}
-                          </div>
-                        )}
                       </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900 flex items-center gap-1">
+                      <Building className="w-4 h-4" />
+                      {customer.company || "—"}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -862,16 +860,6 @@ const CustomersTable = () => {
                       <Calendar className="w-3 h-3" />
                       {formatDate(customer.date)}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <button
-                      onClick={() =>
-                        navigate(`/ledger?customerId=${customer.customer_id}`)
-                      }
-                      className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition-colors"
-                    >
-                      View Ledger
-                    </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative">
                     <button

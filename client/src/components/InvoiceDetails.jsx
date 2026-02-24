@@ -291,10 +291,14 @@ const InvoiceDetailsLayoutImproved = () => {
               line-height: 1.6;
             }
             
+            @page {
+              size: A4;
+              margin: 0;
+            }
             @media print {
               body { 
                 margin: 0; 
-                padding: 0; 
+                padding: 10mm; 
               }
               .invoice-container { 
                 border: none; 
@@ -315,7 +319,7 @@ const InvoiceDetailsLayoutImproved = () => {
             <div class="content">
               <!-- Company Header -->
               <div style="text-align: center; padding: 15px; border-bottom: 1px solid #999;">
-                <img src="${Logo}" alt="A Rauf Textile" style="height: 130px; width: auto; max-width: 400px; margin: 0 auto 10px;">
+                <img src="${Logo}" alt="A Rauf Textile" style="height: 200px; width: auto; max-width: 500px; margin: 0 auto 10px;">
                 <div style="font-size: 11px; color: #333;">
                   <p style="margin: 2px 0; font-size: 10px;">Deals in all kind of Greige & Dyed Fabric</p>
                   <p style="margin: 2px 0; font-size: 10px;">ROOM NO. 205 2ND FLOOR SALEHA CHAMBER, PLOT No. B-9/C-1 SITE KARACHI</p>
@@ -346,7 +350,7 @@ const InvoiceDetailsLayoutImproved = () => {
               <div class="buyer-section">
                 <h3 style="text-decoration: underline;">Buyer's Particulars :</h3>
                 <div class="buyer-grid">
-                  <div><span class="label">Company Name :</span> <strong>${invoice.customer_name || 'MH'}</strong></div>
+                  <div><span class="label">Company Name :</span> <strong>${invoice.customer_name || 'N/A'}</strong></div>
                   <div><span class="label">Address :</span> ${invoice.address || 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi'}</div>
                   <div><span class="label">Sales Tax Reg No :</span> ${invoice.st_reg_no || '32-77-8761-411-88'}</div>
                   <div><span class="label">Phone Number :</span> ${invoice.p_number || '0333-1234567'}</div>
@@ -374,10 +378,10 @@ const InvoiceDetailsLayoutImproved = () => {
                     invoice.items && invoice.items.length > 0
                       ? invoice.items
                           .map((item, index) => {
-                            const valueIncTax = parseFloat(item.amount || 0);
+                            const valueExTax = parseFloat(item.amount || 0);
                             const taxRate = parseFloat(invoice.tax_rate || 0);
-                            const taxAmount = valueIncTax * (taxRate / 100);
-                            const valueExTax = valueIncTax - taxAmount;
+                            const taxAmount = valueExTax * (taxRate / 100);
+                            const valueIncTax = valueExTax + taxAmount;
                             return `
                       <tr>
                         <td class="text-center"><strong>${index + 1}</strong></td>
@@ -400,10 +404,10 @@ const InvoiceDetailsLayoutImproved = () => {
                         <td class="text-center">${parseFloat(invoice.quantity || 0).toLocaleString()}</td>
                         <td class="text-center">${parseFloat(invoice.net_weight || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })} KG</td>
                         <td class="text-right">${parseFloat(invoice.rate || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
-                        <td class="text-right">${(parseFloat(invoice.total_amount || 0) - parseFloat(invoice.total_amount || 0) * ((invoice.tax_rate || 0) / 100)).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                        <td class="text-right">${parseFloat(invoice.subtotal || invoice.total_amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
                         <td class="text-center">${(invoice.tax_rate || 0).toFixed(2)}%</td>
-                        <td class="text-right">${(parseFloat(invoice.total_amount || 0) * ((invoice.tax_rate || 0) / 100)).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
-                        <td class="text-right"><strong>${parseFloat(invoice.total_amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></td>
+                        <td class="text-right">${(parseFloat(invoice.subtotal || invoice.total_amount || 0) * ((invoice.tax_rate || 0) / 100)).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
+                        <td class="text-right"><strong>${(parseFloat(invoice.subtotal || invoice.total_amount || 0) * (1 + (invoice.tax_rate || 0) / 100)).toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></td>
                       </tr>
                     `
                   }
@@ -414,43 +418,43 @@ const InvoiceDetailsLayoutImproved = () => {
                     <td class="text-center"><strong>${invoice.items ? invoice.items.reduce((sum, item) => sum + parseFloat(item.net_weight || 0), 0).toLocaleString("en-US", { minimumFractionDigits: 2 }) : parseFloat(invoice.net_weight || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })} KG</strong></td>
                     <td></td>
                     <td class="text-right"><strong>${(() => {
-                      const totalValueIncTax =
+                      const totalValueExTax =
                         invoice.items && invoice.items.length > 0
                           ? invoice.items.reduce(
                               (sum, item) => sum + parseFloat(item.amount || 0),
                               0,
                             )
-                          : parseFloat(invoice.total_amount || 0);
-                      const taxRate = parseFloat(invoice.tax_rate || 0);
-                      const totalTaxAmount = totalValueIncTax * (taxRate / 100);
-                      const totalValueExTax = totalValueIncTax - totalTaxAmount;
+                          : parseFloat(invoice.subtotal || 0);
                       return totalValueExTax.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                       });
                     })()}</strong></td>
                     <td></td>
                     <td class="text-right"><strong>${(() => {
-                      const totalValueIncTax =
+                      const totalValueExTax =
                         invoice.items && invoice.items.length > 0
                           ? invoice.items.reduce(
                               (sum, item) => sum + parseFloat(item.amount || 0),
                               0,
                             )
-                          : parseFloat(invoice.total_amount || 0);
+                          : parseFloat(invoice.subtotal || 0);
                       const taxRate = parseFloat(invoice.tax_rate || 0);
-                      const totalTaxAmount = totalValueIncTax * (taxRate / 100);
+                      const totalTaxAmount = totalValueExTax * (taxRate / 100);
                       return totalTaxAmount.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                       });
                     })()}</strong></td>
                     <td class="text-right"><strong>${(() => {
-                      const totalValueIncTax =
+                      const totalValueExTax =
                         invoice.items && invoice.items.length > 0
                           ? invoice.items.reduce(
                               (sum, item) => sum + parseFloat(item.amount || 0),
                               0,
                             )
-                          : parseFloat(invoice.total_amount || 0);
+                          : parseFloat(invoice.subtotal || 0);
+                      const taxRate = parseFloat(invoice.tax_rate || 0);
+                      const totalTaxAmount = totalValueExTax * (taxRate / 100);
+                      const totalValueIncTax = totalValueExTax + totalTaxAmount;
                       return totalValueIncTax.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                       });
@@ -854,7 +858,7 @@ This action cannot be undone.`;
                             Company Name :
                           </span>
                           <span className="text-gray-800 font-bold">
-                            {invoice.company_name || "MH"}
+                            {invoice.customer_name || "N/A"}
                           </span>
                         </div>
                         <div className="flex gap-2 mb-2">
