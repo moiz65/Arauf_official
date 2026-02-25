@@ -350,7 +350,7 @@ const InvoiceDetailsLayoutImproved = () => {
               <div class="buyer-section">
                 <h3 style="text-decoration: underline;">Buyer's Particulars :</h3>
                 <div class="buyer-grid">
-                  <div><span class="label">Company Name :</span> <strong>${invoice.customer_name || 'N/A'}</strong></div>
+                  <div><span class="label">Company Name :</span> <strong>${invoice.company_name || invoice.customer_name || 'N/A'}</strong></div>
                   <div><span class="label">Address :</span> ${invoice.address || 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi'}</div>
                   <div><span class="label">Sales Tax Reg No :</span> ${invoice.st_reg_no || '32-77-8761-411-88'}</div>
                   <div><span class="label">Phone Number :</span> ${invoice.p_number || '0333-1234567'}</div>
@@ -858,7 +858,7 @@ This action cannot be undone.`;
                             Company Name :
                           </span>
                           <span className="text-gray-800 font-bold">
-                            {invoice.customer_name || "N/A"}
+                            {invoice.company_name || "N/A"}
                           </span>
                         </div>
                         <div className="flex gap-2 mb-2">

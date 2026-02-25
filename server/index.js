@@ -2617,8 +2617,8 @@ app.get("/api/invoices/filters/options", (req, res) => {
 app.get("/api/invoices/:id", (req, res) => {
   const { id } = req.params;
 
-  // First get the invoice
-  const invoiceQuery = "SELECT * FROM invoice WHERE id = ?";
+  // First get the invoice (JOIN customertable to get company name)
+  const invoiceQuery = "SELECT i.*, c.company as company_name FROM invoice i LEFT JOIN customertable c ON i.customer_id = c.customer_id WHERE i.id = ?";
   db.query(invoiceQuery, [id], (err, invoiceResults) => {
     if (err) {
       console.error("Error fetching invoice:", err);
